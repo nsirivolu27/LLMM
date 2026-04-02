@@ -1,6 +1,6 @@
 # LNKZ
 
-LNKZ is a geo-social photo sharing platform designed around location-aware discovery, background image processing, and geospatial search. This monorepo mirrors the architecture described on my resume:
+LNKZ is a geo-social photo sharing platform designed around location-aware discovery, background image processing, and geospatial search:
 
 - `backend/`: Django REST + GeoDjango API for users, photos, places, and interactions
 - `pipeline/`: FastAPI + Celery service for async upload orchestration and image processing
