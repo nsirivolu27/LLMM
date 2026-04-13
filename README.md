@@ -46,10 +46,6 @@ docker compose up --build
 - PostgreSQL/PostGIS: `localhost:5432`
 - Redis: `localhost:6379`
 
-## Resume Alignment
-
-This repo intentionally showcases:
-
 - Django REST Framework, GeoDjango, and PostGIS
 - FastAPI and Celery for async upload handling
 - Spring Boot and Hibernate Spatial
