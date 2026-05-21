@@ -1,5 +1,7 @@
 # LNKZ
 
+Website : https://lnkz.lovable.app/ 
+
 LNKZ is a geo-social photo sharing platform designed around location-aware discovery, background image processing, and geospatial search:
 
 - `backend/`: Django REST + GeoDjango API for users, photos, places, and interactions
