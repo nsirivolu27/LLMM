@@ -59,6 +59,3 @@ docker compose up --build
 - Real EXIF extraction and thumbnail generation
 - Observability with Prometheus and OpenTelemetry
 
-## Website 
-
-Website : https://lnkz.lovable.app/
