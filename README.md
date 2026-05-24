@@ -1,6 +1,5 @@
 # LNKZ
-
-Website : https://lnkz.lovable.app/ 
+ 
 
 LNKZ is a geo-social photo sharing platform designed around location-aware discovery, background image processing, and geospatial search:
 
@@ -60,3 +59,6 @@ docker compose up --build
 - Real EXIF extraction and thumbnail generation
 - Observability with Prometheus and OpenTelemetry
 
+## Website 
+
+Website : https://lnkz.lovable.app/
