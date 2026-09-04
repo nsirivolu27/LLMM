@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isOriginAllowed, rateLimit } from "../src/auth.js";
+import { isOriginAllowed, rateLimit, withLoopback } from "../src/auth.js";
 
 test("same-origin web assets work without weakening the origin allowlist", () => {
   assert.equal(isOriginAllowed("http://127.0.0.1:3100", "127.0.0.1:3100", []), true);
@@ -36,4 +36,16 @@ test("a limiter configured with max 0 is disabled rather than blocking everythin
   let allowed = 0;
   limiter({ header: () => undefined, ip: "198.51.100.1", socket: {} } as never, {} as never, () => { allowed += 1; });
   assert.equal(allowed, 1);
+});
+
+test("loopback hosts stay allowed so a container health check is not rejected", () => {
+  const hosts = withLoopback(["lnkz.fly.dev"], 3100);
+  assert.ok(hosts.includes("lnkz.fly.dev"));
+  assert.ok(hosts.includes("127.0.0.1:3100"), "the in-container health check sends this Host");
+  assert.ok(hosts.includes("localhost"));
+  assert.equal(hosts.includes("evil.example"), false);
+});
+
+test("an empty ALLOWED_HOSTS stays empty, so the SDK default applies", () => {
+  assert.deepEqual(withLoopback([], 3100), []);
 });

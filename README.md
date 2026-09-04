@@ -67,7 +67,7 @@ mcp-server/src/store/    conversation storage and handoffs
 mcp-server/src/import/   per-provider export normalizers
 mcp-server/src/intel/    analysis, packets, similarity, conflicts, redaction
 mcp-server/src/connectors/  Slack, Jira, Figma, document feeds, federated MCP
-mcp-server/tests/        42 tests, no network and no credentials required
+mcp-server/tests/        44 tests, no network and no credentials required
 scripts/smoke.mjs        end-to-end check against a real running server
 legacy/geo-social/       archived first-generation prototype, outside the active build
 ```
@@ -133,12 +133,13 @@ and terminate TLS in front of the container: a handoff token is a bearer secret 
 The Compose volume persists the SQLite database at `/app/data/lnkz.db`.
 
 `fly.toml` and `render.yaml` are checked in. Both mount a persistent disk at `/app/data`,
-which is required — a redeploy without one loses the store.
+which is required: a redeploy without one loses the store. [DEPLOY.md](DEPLOY.md) is the
+step-by-step runbook, including the two settings that cause almost every first-deploy failure.
 
 ## Verification
 
 ```bash
-npm test          # 42 unit and integration tests
+npm test          # 44 unit and integration tests
 npm run typecheck # web and server, strict mode
 npm run build     # site + server
 node scripts/smoke.mjs   # boots the built server and drives it over REST and MCP

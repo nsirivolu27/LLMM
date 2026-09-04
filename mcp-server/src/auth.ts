@@ -95,3 +95,22 @@ function pruneExpired(hits: Map<string, { count: number; resetAt: number }>, now
     if (entry.resetAt <= now) hits.delete(key);
   }
 }
+
+/**
+ * Host validation exists to stop DNS rebinding, and setting ALLOWED_HOSTS to a
+ * public domain is the correct production setting. On its own, though, it also
+ * rejects the container's own health check, which reaches the process over
+ * loopback and therefore sends `Host: 127.0.0.1:<port>`. A machine that never
+ * reports healthy never receives traffic, so the loopback names are always
+ * allowed. The browser attack this protects against is still blocked, because a
+ * page on another origin is stopped by the Origin check rather than this one.
+ */
+export function withLoopback(hosts: string[], port: number): string[] {
+  if (!hosts.length) return hosts;
+  const loopback = ["localhost", "127.0.0.1", "[::1]"];
+  return [...new Set([
+    ...hosts,
+    ...loopback,
+    ...loopback.map((name) => `${name}:${port}`),
+  ])];
+}

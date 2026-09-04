@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { rateLimit, requireApiKey, validateOrigin } from "./auth.js";
+import { rateLimit, requireApiKey, validateOrigin, withLoopback } from "./auth.js";
 import { connectorStatuses } from "./connectors/index.js";
 import { importConversations } from "./import/index.js";
 import { analyzeConversation } from "./intel/analyze.js";
@@ -31,7 +31,7 @@ import type { Conversation } from "./types.js";
 const host = process.env.HOST?.trim() || "127.0.0.1";
 const port = Number(process.env.PORT ?? 3100);
 const publicBaseUrl = process.env.LNKZ_PUBLIC_BASE_URL || `http://${host}:${port}`;
-const allowedHosts = splitList(process.env.ALLOWED_HOSTS);
+const allowedHosts = withLoopback(splitList(process.env.ALLOWED_HOSTS), port);
 
 const app = createMcpExpressApp({ host, allowedHosts: allowedHosts.length ? allowedHosts : undefined });
 const { store, core, connectors } = createRuntime();

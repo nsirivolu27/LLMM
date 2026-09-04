@@ -24,9 +24,3 @@ geo-service/target/
 *.db-wal
 *.db-shm
 .testbuild/
-
-# Files staged for you to delete (remote tools cannot unlink)
-_to_delete/
-
-# Graphify output is generated; rebuild it with: graphify . --update
-graphify-out/

@@ -30,6 +30,11 @@ primary_region = "iad"
     grace_period = "10s"
     method = "GET"
     path = "/health"
+    # The check reaches the machine on its private address, so without this the
+    # Host header is an internal IP that ALLOWED_HOSTS rejects and the machine
+    # never reports healthy. Keep this in step with the app name above.
+    [http_service.checks.headers]
+      Host = "lnkz.fly.dev"
 
 [[vm]]
   size = "shared-cpu-1x"
