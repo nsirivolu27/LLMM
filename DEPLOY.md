@@ -167,3 +167,93 @@ fly ssh console -C "cat /app/data/lnkz.db" > lnkz-backup.db
 
 Do this before any schema change. When LNKZ moves to Postgres, this section is replaced by
 ordinary database backups.
+
+## AWS reference deployment: App Runner + private RDS
+
+The repository also contains a CDK reference stack in `infra/`. It creates a VPC, one NAT
+Gateway, private RDS PostgreSQL, an S3 Gateway Endpoint, a customer-managed KMS key, encrypted
+S3 exports, Secrets Manager secrets, an ECR repository, App Runner roles, a VPC connector, and
+CloudWatch log retention. The default App Runner configuration is capped at three instances.
+With eight Postgres connections per instance, the application budget is 24 connections, leaving
+headroom on a `db.t4g.micro`.
+
+Check App Runner availability in the target AWS account before committing to this path. AWS may
+not accept new App Runner customers in every account or region. If the service is unavailable,
+keep the same VPC, RDS, secrets, and container image and run the service on ECS Fargate instead.
+
+### 1. Bootstrap the infrastructure
+
+The first deployment creates the ECR repository but does not create App Runner, because App
+Runner needs an image that is already in ECR:
+
+```bash
+npm install
+npm run infra:synth
+npx cdk bootstrap
+npx cdk deploy LnkzProduction \
+  --parameters EnableAppRunner=false \
+  --outputs-file cdk-outputs.json
+```
+
+Record the `RepositoryUri`, `MigrationSecretArn`, `ApplicationDatabaseSecretArn`, and
+`DatabaseEndpoint` outputs. Push the image after building it:
+
+```bash
+docker build -f mcp-server/Dockerfile -t lnkz:release .
+docker tag lnkz:release "$REPOSITORY_URI:$IMAGE_TAG"
+docker push "$REPOSITORY_URI:$IMAGE_TAG"
+```
+
+The application secret is intentionally separate from the migration secret. Retrieve both
+through AWS Secrets Manager, create the `lnkz_app` login with the application secret's password,
+and run the migration as the migration role:
+
+```bash
+export DATABASE_URL='postgresql://lnkz_migrator:...@PRIVATE_RDS_ENDPOINT:5432/lnkz'
+export LNKZ_DATABASE_APP_ROLE=lnkz_app
+npm --prefix mcp-server run db:migrate
+```
+
+`db:migrate` owns DDL and grants only table DML to `lnkz_app`; it does not grant ownership or
+`BYPASSRLS`. The application role must never be used to run migrations. Keep the migration
+credential in the release environment, not in the App Runner runtime.
+
+### 2. Enable App Runner
+
+Deploy the image tag and the public URL parameters. App Runner injects the API key and the
+application database username/password from Secrets Manager; the application supplies the
+non-secret RDS host, port, and database name as environment variables and constructs its
+connection URL. No application request to Secrets Manager is required.
+
+```bash
+npx cdk deploy LnkzProduction \
+  --parameters EnableAppRunner=true \
+  --parameters ImageTag="$IMAGE_TAG" \
+  --parameters PublicBaseUrl=https://YOUR_PUBLIC_HOST \
+  --parameters AllowedHosts=YOUR_PUBLIC_HOST \
+  --parameters AllowedOrigins=https://YOUR_PUBLIC_HOST
+```
+
+The VPC connector is required for private RDS access. It also means ordinary public egress is
+not available without the NAT Gateway. The S3 Gateway Endpoint avoids paying NAT for S3. Keep
+CloudFront/WAF out of v1 to avoid roughly $10–15/month of fixed cost; if public signup or share
+abuse justifies adding them later, never cache `/api/*`, `/mcp`, or `/share/*`.
+
+### 3. Release and smoke test
+
+Run migrations explicitly before shifting traffic, then exercise the deployed service:
+
+```bash
+node scripts/smoke.mjs https://YOUR_PUBLIC_HOST
+```
+
+The smoke test can exercise a local Postgres mode too. Set `SMOKE_DATABASE_URL` to a migrated
+database URL and run `node scripts/smoke.mjs`; without it, the test deliberately boots SQLite.
+The Postgres integration tests additionally require `LNKZ_POSTGRES_MIGRATION_URL` and a separate
+non-owner `LNKZ_POSTGRES_TEST_URL`, so unset, empty, and foreign workspace contexts are tested
+under RLS rather than through a superuser connection.
+
+The stack deliberately does not create database roles through CDK: RDS role passwords are
+database credentials, not CloudFormation values. The migration bootstrap is the auditable
+boundary that creates `lnkz_app`, applies grants, and verifies the runtime role cannot bypass
+RLS. Keep the RDS instance in isolated subnets and do not make it publicly accessible.

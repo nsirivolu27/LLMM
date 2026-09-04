@@ -15,7 +15,7 @@
               +--------------+      |     +-----------------+
               |                     |                       |
       import normalizers    ConversationStore        federated search
-      (chatgpt, claude,     (SQLite + FTS5,          (slack, jira, figma,
+       (chatgpt, claude,     (SQLite + FTS5 or        (slack, jira, figma,
        gemini, lnkz,         handoffs, audit)         docs, MCP-to-MCP)
        markdown, text)             |
               |                    |
@@ -36,10 +36,11 @@ never drift apart.
 
 ## Storage
 
-SQLite through Node's built-in `node:sqlite`. That choice is deliberate: LNKZ is meant to be
-run by one person on whatever machine they have, and a native module that needs a compiler is
-a real barrier for that person. The cost is that `node:sqlite` is still flagged experimental
-upstream, which is an acceptable trade for an MVP and a one-line change if it stops being true.
+SQLite through Node's built-in `node:sqlite` remains the default when `DATABASE_URL` is absent.
+That choice is deliberate: LNKZ is meant to be run by one person on whatever machine they have,
+and a native module that needs a compiler is a real barrier for that person. A deployment that
+sets `DATABASE_URL` uses `PostgresConversationStore` instead, without changing the
+`ConversationStore` contract or the MCP tool contract.
 
 Conversations and messages are normalized tables. Search is a separate FTS5 table rebuilt on
 write, ranked with `bm25()` weighted toward titles. User queries never reach FTS5 as written:
@@ -47,8 +48,23 @@ they are reduced to quoted terms joined by `AND`, and retried as `OR` when the s
 returns nothing, because FTS5's grammar throws on ordinary punctuation.
 
 Writes go through one transaction per conversation, so a partially written thread is not
-possible. Migrations are versioned with `PRAGMA user_version`. A pre-SQLite `.data/lnkz.json`
-is imported once on first boot rather than being silently orphaned.
+possible. SQLite migrations are versioned with `PRAGMA user_version`; Postgres migrations are
+an explicit release step (`npm run db:migrate`) and application startup fails closed when
+`schema_migrations` is behind. The SQLite-to-Postgres importer supports a dry run before it
+writes. A pre-SQLite `.data/lnkz.json` is imported once on first boot rather than being silently
+orphaned.
+
+Postgres keeps `workspace_id` directly on conversations, messages, handoffs, audit events, and
+rate-limit buckets. Every store operation starts a transaction and uses transaction-local
+`set_config('app.workspace_id', ...)`; it never uses a pooled session setting. RLS policies
+fail closed with `nullif(current_setting('app.workspace_id', true), '')::uuid`, and the runtime
+role is a non-owner with no `BYPASSRLS`. The migration role owns the tables and is used only by
+the release migration step.
+
+Postgres search keeps a denormalized `search_text` alongside the normalized messages, then
+indexes a weighted `tsvector` with GIN. Titles rank above summaries and message text, and
+`ts_headline` supplies snippets. Search tests assert ordering and useful snippets rather than
+exact database scores.
 
 ## Import
 
@@ -102,11 +118,21 @@ general shape: LNKZ federates other MCP servers rather than reimplementing them.
 
 One Node process serves the built site, the REST API, and `POST /mcp` as stateless Streamable
 HTTP. A new `McpServer` and transport are constructed per request and torn down when the
-response closes, which is what makes the endpoint safe to run behind an autoscaler.
+response closes, which is what makes the endpoint safe to run behind an autoscaler. In the AWS
+deployment, the cheap in-process limiter runs first and a Postgres bucket limiter runs second,
+so a burst is rejected locally while the limit remains shared across instances.
 
-## What has to change before this is multi-user
+The AWS reference deployment uses App Runner, a private RDS PostgreSQL instance, Secrets
+Manager, a customer-managed KMS key, an encrypted S3 bucket, and CloudWatch logs. App Runner
+uses a VPC connector to reach RDS. Because that connector removes ordinary public egress, the
+default VPC has one NAT Gateway; S3 uses a free Gateway Endpoint. Direct AWS SDK calls would
+also need NAT or interface endpoints, but App Runner's Secrets Manager environment injection is
+platform-managed and does not make application traffic through the connector.
 
-The shared API key, the single-instance in-process rate limiter, and the local SQLite file are
-all single-tenant assumptions. Before a public multi-user release: workspace identities and
-scoped authorization, encrypted Postgres, a shared rate-limit store, per-workspace handoff
-policy, and managed OAuth for connector installs.
+## Remaining multi-user boundary
+
+SQLite remains intentionally single-process. The Postgres schema and RLS boundary are ready for
+workspace-aware identity, but the request identity must set the workspace context rather than
+relying on the deployment-wide `LNKZ_POSTGRES_WORKSPACE_ID` default. The shared bearer key is
+still a deployment-level credential; public multi-user rollout must finish per-user identity,
+scoped authorization, per-workspace handoff policy, and managed OAuth for connector installs.

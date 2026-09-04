@@ -11,6 +11,8 @@
     "start": "npm --prefix mcp-server run start",
     "mcp:dev": "npm --prefix mcp-server run dev",
     "mcp:stdio": "npm --prefix mcp-server run mcp:stdio",
+    "infra:synth": "infra/node_modules/.bin/cdk synth",
+    "infra:diff": "infra/node_modules/.bin/cdk diff",
     "test": "npm --prefix mcp-server test",
     "typecheck": "tsc --noEmit && npm --prefix mcp-server run typecheck"
   },
