@@ -112,7 +112,11 @@ export class PostgresConversationStore implements ConversationStore {
           limit $${values.length - 1} offset $${values.length}`,
         [...values.slice(0, -2), limit, offset],
       );
-      return Promise.all(result.rows.map(async (row) => rowToSummary(row, await this.messageCount(client, row.id))));
+      const summaries: ConversationSummary[] = [];
+      for (const row of result.rows) {
+        summaries.push(rowToSummary(row, await this.messageCount(client, row.id)));
+      }
+      return summaries;
     });
   }
 
@@ -159,15 +163,17 @@ export class PostgresConversationStore implements ConversationStore {
       const rows = strict.length ? strict : await this.runSearch(client, terms.join(" OR "), bounded);
       if (!rows.length) return [];
       const best = Math.max(...rows.map((row) => Number(row.score)));
-      return Promise.all(rows.map(async (row) => {
+      const matches: ConversationMatch[] = [];
+      for (const row of rows) {
         const conversation = await this.loadConversation(client, row.id);
-        if (!conversation) return null;
-        return {
+        if (!conversation) continue;
+        matches.push({
           ...conversationToSummary(conversation),
           relevance: best === 0 ? 1 : Number((Number(row.score) / best).toFixed(3)),
           snippet: row.snippet.replace(/\s+/g, " ").trim(),
-        } satisfies ConversationMatch;
-      })).then((matches) => matches.filter((match): match is ConversationMatch => match != null));
+        });
+      }
+      return matches;
     });
   }
 
@@ -315,17 +321,15 @@ export class PostgresConversationStore implements ConversationStore {
 
   async stats(): Promise<StoreStats> {
     return this.transaction(async (client) => {
-      const [conversations, messages, events, handoffs, providers] = await Promise.all([
-        client.query<{ total: string }>("select count(*)::text as total from conversations"),
-        client.query<{ total: string }>("select count(*)::text as total from messages"),
-        client.query<{ total: string }>("select count(*)::text as total from events"),
-        client.query<{ total: string }>(
-          "select count(*)::text as total from handoffs where revoked_at is null and expires_at > now() and uses < max_uses",
-        ),
-        client.query<{ provider: string; count: string }>(
-          "select provider, count(*)::text as count from conversations group by provider order by count desc",
-        ),
-      ]);
+      const conversations = await client.query<{ total: string }>("select count(*)::text as total from conversations");
+      const messages = await client.query<{ total: string }>("select count(*)::text as total from messages");
+      const events = await client.query<{ total: string }>("select count(*)::text as total from events");
+      const handoffs = await client.query<{ total: string }>(
+        "select count(*)::text as total from handoffs where revoked_at is null and expires_at > now() and uses < max_uses",
+      );
+      const providers = await client.query<{ provider: string; count: string }>(
+        "select provider, count(*)::text as count from conversations group by provider order by count desc",
+      );
       return {
         conversations: Number(conversations.rows[0]?.total ?? 0),
         messages: Number(messages.rows[0]?.total ?? 0),
