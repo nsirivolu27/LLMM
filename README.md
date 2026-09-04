@@ -1,161 +1,210 @@
+<div align="center">
+
 # LNKZ
- 
 
-LNKZ is a self-hostable MCP server that carries conversation context between people,
-devices, and LLM clients.
+**Your best conversations are trapped in whichever app you had them in. LNKZ gets them out.**
 
-A useful chat currently dies inside whichever client it happened in. LNKZ takes that chat
-out: import it from a ChatGPT, Claude, or Gemini export, from a Markdown transcript, or from
-a raw paste; store it in one provider-neutral format; search it; reduce it to a
-token-budgeted packet the next model can act on; and hand it to a person, a device, or a
-different client through an expiring, revocable link.
+Move a chat from ChatGPT to Claude, from your laptop to your phone, from you to a teammate.
+Send the next model the decisions instead of the transcript. Share a thread with a link that
+expires, scrubs your keys on the way out, and can be revoked after you send it.
 
-The same server also federates the systems around the chat, so a question can be answered
-from the conversation and from Slack, Jira, Figma, documentation feeds, or any other MCP
-server in one call.
+[Quick start](#quick-start) · [Live demo](#the-sixty-second-demo) · [Docs](#documentation) · [Self-host](DEPLOY.md)
+
+![ci](https://github.com/nsirivolu27/LNKZ/actions/workflows/ci.yml/badge.svg)
+
+</div>
+
+---
+
+## The problem
+
+You spend an hour with a model working something out. It lands on an answer, names the
+tradeoffs, leaves two things open. Then you need it somewhere else.
+
+Today that means copying and pasting a wall of text into the next window, where the new model
+re-reads forty thousand tokens to recover four sentences of conclusion. Or you paste it into
+Slack, where it is unreadable and now permanent. Or you screenshot it. Or you just explain it
+again from memory, badly.
+
+The conversation was the work. It should not be stuck in the client that happened to host it.
+
+## What LNKZ does
+
+**Brings a chat in from anywhere.** Drop in a ChatGPT export, a Claude export, a Gemini
+payload, a Markdown transcript, or just text you copied out of a window. LNKZ figures out the
+format and normalizes it. ChatGPT exports are handled properly: because editing a message
+branches the conversation, the export is a tree, and LNKZ reconstructs the thread you actually
+saw instead of interleaving drafts you abandoned.
+
+**Sends the gist, not the transcript.** Ask for a context packet and LNKZ returns what was
+decided, what is still open, what happens next, and a recent excerpt, trimmed to whatever
+token budget you name. Fifteen hundred tokens instead of forty thousand, and the next model
+starts where you left off rather than reading its way there.
+
+**Hands it to a person safely.** A handoff is a link that expires, that stops working after N
+uses, that you can revoke after sending, and that can strip API keys, tokens, and credentials
+before the content ever leaves. Only a hash of the link is stored, so the database cannot leak
+a working one.
+
+**Keeps the thread whole across clients.** Continue a handed-off conversation somewhere else
+and the new thread points back at the original, so you can walk the chain from wherever it
+ended up to wherever it started.
+
+**Searches the work around the chat.** One question spans your saved conversations plus Slack,
+Jira, Figma, documentation feeds, and any other MCP server you connect.
+
+## How it works
 
 ```
-ChatGPT / Claude / Gemini / local model
-                  |
-        import or save_conversation
-                  |
-        +---------+---------+
-        |    LNKZ server    |  MCP (HTTP + stdio) · REST · web console
-        +---------+---------+
-                  |
-   +--------------+----------------+
-   |              |                |
-context packet  handoff link   federated search
-(next model)   (person/device)  (Slack, Jira, Figma, docs, other MCP servers)
+   ChatGPT      Claude       Gemini      a local model      you, pasting
+      |            |            |              |                 |
+      +------------+-----+------+--------------+-----------------+
+                         |
+                    ┌────┴─────┐
+                    │   LNKZ   │   MCP over HTTP and stdio · REST · web console
+                    └────┬─────┘
+                         |
+        +----------------+----------------+
+        |                |                |
+   context packet    handoff link    federated search
+   for the next      for a person    across Slack, Jira,
+   model             or device       Figma, docs, other
+                                     MCP servers
 ```
 
-## What works now
-
-**Portability**
-
-- `lnkz.conversation.v1`: one provider-neutral schema, plus a readable Markdown transcript
-- Importers for ChatGPT tree exports, Claude account exports, Gemini payloads, LNKZ packets,
-  Markdown transcripts, and unlabeled pasted text, with format auto-detection and a dry run
-- Conversation lineage, so a thread continued in a second client still points back at the first
-
-**Context intelligence, with no model call**
-
-- Deterministic extraction of decisions, open questions, action items, cited facts, and topics,
-  each attributed to the message it came from
-- Token-budgeted context packets that carry the gist instead of the transcript
-- Near-duplicate detection and cross-conversation contradiction detection
-
-**Relay safety**
-
-- Expiring, use-limited handoff links; only SHA-256 digests of tokens are stored
-- Revocation, an append-only audit log, `no-store` responses, and a rate limit on the public
-  share endpoint
-- Optional secret redaction on export: API keys, tokens, private keys, connection strings,
-  and, when asked, emails and card numbers
-
-**Interfaces**
-
-- 20 MCP tools, 4 resources, and 4 prompts over stateless Streamable HTTP and local stdio
-- A REST API covering the same surface, for clients that are not MCP-aware
-- A web console for import, search, packet building, and handoff management
-- SQLite with FTS5 ranked search, behind a storage interface that Postgres can implement later
-
-## Repository layout
-
-```text
-src/                     product site and web console (TypeScript, no framework)
-mcp-server/src/store/    conversation storage and handoffs
-mcp-server/src/import/   per-provider export normalizers
-mcp-server/src/intel/    analysis, packets, similarity, conflicts, redaction
-mcp-server/src/connectors/  Slack, Jira, Figma, document feeds, federated MCP
-mcp-server/tests/        44 tests, no network and no credentials required
-scripts/smoke.mjs        end-to-end check against a real running server
-legacy/geo-social/       archived first-generation prototype, outside the active build
-```
+LNKZ speaks MCP, so it plugs into Claude, Cursor, Codex, and anything else that speaks the
+protocol. It also has a plain REST API and a web console, because not everything that needs
+your context is an AI client.
 
 ## Quick start
 
-Requires Node.js 22.5 or newer. Storage uses the built-in `node:sqlite` module, so there is
-no native module to compile.
+Node 22.5 or newer. Storage is SQLite through Node's built-in module, so there is nothing to
+compile and no database to run.
 
 ```bash
 npm install
 npm ci --prefix mcp-server
-cp mcp-server/.env.example mcp-server/.env   # copy on Windows
-npm run mcp:dev
+cp mcp-server/.env.example mcp-server/.env
+
+npm run mcp:dev      # server on :3100
+npm run dev          # site on :5173, console at /console.html
 ```
 
-In a second terminal:
+Point an MCP client at it:
+
+```json
+{
+  "mcpServers": {
+    "lnkz": {
+      "url": "http://localhost:3100/mcp",
+      "headers": { "Authorization": "Bearer YOUR_LNKZ_API_KEY" }
+    }
+  }
+}
+```
+
+## The sixty-second demo
+
+Three calls that are the whole product.
 
 ```bash
-npm run dev
+LNKZ=http://localhost:3100
+KEY=$(grep LNKZ_API_KEY mcp-server/.env | cut -d= -f2)
+
+# 1. Bring a conversation in. This one is a raw paste; an export works the same way.
+curl -s -X POST $LNKZ/api/conversations/import \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"payload":"User: postgres or sqlite for the relay?\nAssistant: We decided to use SQLite, it removes the deployment dependency. I will write the migration. Still unclear whether we need WAL checkpoints."}'
+
+# 2. Ask for what the next model actually needs.
+curl -s -X POST $LNKZ/api/context/packet \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"query":"sqlite","budgetTokens":1500}'
+#    -> decision: use SQLite, it removes the deployment dependency
+#    -> open question: whether WAL checkpoints are needed
+#    -> action item: write the migration
+
+# 3. Hand it to someone, for an hour, three uses, secrets stripped.
+curl -s -X POST $LNKZ/api/conversations/<id>/handoffs \
+  -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+  -d '{"ttlMinutes":60,"maxUses":3,"redact":true,"audience":"design review"}'
 ```
 
-The site runs at `http://localhost:5173`, the console at `/console.html`, and Vite proxies the
-API to `http://127.0.0.1:3100`. The hosted MCP endpoint is `POST /mcp`.
+Step 2 is the part worth pausing on. Nothing called a model to produce that. The extraction is
+rule based, which means it costs nothing, works offline, and gives the same answer twice.
 
-For a local stdio client:
+## Capabilities
 
-```bash
-npm run build
-npm run mcp:stdio
-```
+| | |
+| --- | --- |
+| **Import** | ChatGPT, Claude, Gemini, LNKZ packets, Markdown, plain text. Auto-detected. Preview before writing. |
+| **Understand** | Decisions, open questions, action items, cited facts, topics. Each traced to the message it came from. |
+| **Package** | Token-budgeted context packets for the next model. |
+| **Share** | Expiring, use-limited, revocable links. Hashed tokens. Optional secret redaction. Full audit trail. |
+| **Continue** | Lineage across clients, so a relayed thread stays one thread. |
+| **Reconcile** | Near-duplicate detection, and flags when two conversations decided differently. |
+| **Connect** | Slack, Jira, Figma, documentation feeds, and any MCP server. Failure-isolated. |
+| **Reach** | 20 MCP tools, 4 resources, 4 prompts, over HTTP and stdio. Plus REST and a web console. |
 
-## Try the relay in one minute
+## Integrations
 
-```bash
-export LNKZ=http://localhost:3100
-export KEY=$(grep LNKZ_API_KEY mcp-server/.env | cut -d= -f2)
+Every connector is optional and read-only. An unconfigured source shows as disabled with the
+reason rather than failing, and one source being down never hides results from the others.
 
-# 1. bring a chat in from anywhere
-curl -s -X POST $LNKZ/api/conversations/import -H "Authorization: Bearer $KEY" \
-  -H 'Content-Type: application/json' \
-  -d '{"payload":"User: postgres or sqlite?\nAssistant: We decided to use SQLite. I will write the migration."}'
+| Source | Set |
+| --- | --- |
+| Slack | `SLACK_USER_TOKEN`, or `SLACK_BOT_TOKEN` + `SLACK_CHANNEL_IDS` |
+| Jira Cloud | `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
+| Figma | `FIGMA_PERSONAL_ACCESS_TOKEN`, `FIGMA_FILE_KEYS` |
+| Docs | `DOCUMENT_FEED_URLS` |
+| Any MCP server | its URL and key |
 
-# 2. reduce it for the next model
-curl -s -X POST $LNKZ/api/context/packet -H "Authorization: Bearer $KEY" \
-  -H 'Content-Type: application/json' -d '{"query":"sqlite","budgetTokens":1500}'
+## Your data stays yours
 
-# 3. hand it to someone
-curl -s -X POST $LNKZ/api/conversations/<id>/handoffs -H "Authorization: Bearer $KEY" \
-  -H 'Content-Type: application/json' -d '{"ttlMinutes":60,"maxUses":3,"redact":true}'
-```
+LNKZ is self-hosted by design. There is no LNKZ cloud, no account to create, and nothing
+phones home.
 
-See [MCP.md](MCP.md) for the full tool and endpoint reference.
+- Conversations live in a SQLite file you control
+- Handoff links carry 192 bits of randomness and are stored only as SHA-256 digests
+- Redemptions are `no-store` and `noindex`, and the public share route is rate limited
+- Redaction is conservative on purpose: it will not match on bare words, and it Luhn-checks
+  card-shaped numbers so version strings and IDs survive
+- Every save, share, redemption, rejection, and revocation is in an audit log you can read
 
-## Deploy
+A handoff link is a bearer secret in a URL. Terminate TLS in front of it.
+
+## Self-hosting
 
 ```bash
 docker compose up --build
 ```
 
-Set a strong `LNKZ_API_KEY` and an externally reachable `LNKZ_PUBLIC_BASE_URL` before hosting,
-and terminate TLS in front of the container: a handoff token is a bearer secret in a URL.
-The Compose volume persists the SQLite database at `/app/data/lnkz.db`.
+For a real deployment, `fly.toml` and `render.yaml` are checked in and
+**[DEPLOY.md](DEPLOY.md)** is the runbook: the volume you need, what each setting does, and the
+two mistakes that cause almost every first deploy to fail.
 
-`fly.toml` and `render.yaml` are checked in. Both mount a persistent disk at `/app/data`,
-which is required: a redeploy without one loses the store. [DEPLOY.md](DEPLOY.md) is the
-step-by-step runbook, including the two settings that cause almost every first-deploy failure.
+## Documentation
 
-## Verification
+| | |
+| --- | --- |
+| [DEPLOY.md](DEPLOY.md) | Deploying to Fly or Render, and what to check afterwards |
+| [MCP.md](MCP.md) | Every tool, resource, prompt, and REST endpoint |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How it is built and why those tradeoffs |
+| [ROADMAP.md](ROADMAP.md) | Shipped, next, and later |
+| [GRAPHIFY.md](GRAPHIFY.md) | The codebase knowledge graph used while developing |
+| [AGENTS.md](AGENTS.md) | Contributor guide |
+
+## Project status
+
+Working MVP, single user, self-hosted. 44 tests plus an end-to-end smoke test that boots the
+built server and drives it over both REST and MCP.
 
 ```bash
-npm test          # 44 unit and integration tests
-npm run typecheck # web and server, strict mode
-npm run build     # site + server
-node scripts/smoke.mjs   # boots the built server and drives it over REST and MCP
+npm test && npm run typecheck && npm run build && node scripts/smoke.mjs
 ```
 
-The smoke test is the one that catches wiring mistakes the unit tests cannot see: middleware
-order, auth, transport framing, and static serving.
+**Not there yet:** accounts and workspaces, more than one instance, semantic search, OAuth for
+connectors, and writing back to connected systems. See [ROADMAP.md](ROADMAP.md).
 
-## Development notes
-
-[GRAPHIFY.md](GRAPHIFY.md) covers the codebase knowledge graph used while working on this
-repository, and how to register it alongside LNKZ as a second MCP server.
-
-## Direction
-
-The current storage is a single-instance SQLite file. The next production boundary is
-encrypted Postgres with accounts, scoped workspaces, retention controls, and audited OAuth
-connector installs. See [ROADMAP.md](ROADMAP.md).
+The first-generation geo-social prototype that used to live here is archived under
+`legacy/geo-social/`.
