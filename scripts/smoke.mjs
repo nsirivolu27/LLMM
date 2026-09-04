@@ -144,6 +144,30 @@ async function main() {
     JSON.stringify(exported.body).slice(0, 160),
   );
 
+  const latex = await fetch(`${baseUrl}/api/conversations/${conversation.id}/export?format=latex`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+  });
+  const tex = await latex.text();
+  check(
+    "a conversation exports as a compilable LaTeX document",
+    latex.status === 200 && tex.includes("\\documentclass") && tex.includes("\\end{document}"),
+    tex.slice(0, 120),
+  );
+
+  const graph = await request("/api/graph?limit=10");
+  check(
+    "the conversation graph builds over the stored corpus",
+    graph.status === 200 && Array.isArray(graph.body?.graph?.nodes) && graph.body.graph.nodes.length > 0,
+    JSON.stringify(graph.body).slice(0, 160),
+  );
+
+  const targets = await request("/api/publish/targets");
+  check(
+    "publish targets report cleanly when none are configured",
+    targets.status === 200 && Array.isArray(targets.body?.targets),
+    JSON.stringify(targets.body).slice(0, 160),
+  );
+
   const badFormat = await request(`/api/conversations/${conversation.id}/export?format=nope`);
   check("an unknown export format is refused", badFormat.status === 400, `got ${badFormat.status}`);
 

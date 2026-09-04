@@ -10,6 +10,7 @@ const EXPECTED_TOOLS = [
   "analyze_conversation",
   "append_messages",
   "audit_log",
+  "build_context_graph",
   "build_context_packet",
   "continue_handoff",
   "create_handoff",
@@ -22,6 +23,8 @@ const EXPECTED_TOOLS = [
   "list_connectors",
   "list_conversations",
   "list_handoffs",
+  "list_publish_targets",
+  "prepare_publish",
   "redeem_handoff",
   "revoke_handoff",
   "save_conversation",
@@ -67,7 +70,7 @@ test("the MCP surface exposes the full relay lifecycle", async (t) => {
   const resources = await client.listResources();
   assert.deepEqual(
     resources.resources.map((resource) => resource.uri).sort(),
-    ["lnkz://connectors", "lnkz://conversations", "lnkz://stats"],
+    ["lnkz://connectors", "lnkz://conversations", "lnkz://graph", "lnkz://stats"],
   );
 });
 

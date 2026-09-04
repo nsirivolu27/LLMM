@@ -1,5 +1,6 @@
 import { analyzeConversation } from "../intel/analyze.js";
 import { conversationToMarkdown, conversationToMarkdownWithAnalysis } from "../store/markdown.js";
+import { toLatex } from "./latex.js";
 import type { Conversation, ConversationMessage } from "../types.js";
 
 /**
@@ -18,11 +19,20 @@ export type ExportFormat =
   | "chatgpt"
   | "claude"
   | "lnkz"
+  | "latex"
   | "text";
 
 export const EXPORT_FORMATS: ExportFormat[] = [
-  "markdown", "markdown-brief", "openai", "chatgpt", "claude", "lnkz", "text",
+  "markdown", "markdown-brief", "openai", "chatgpt", "claude", "lnkz", "latex", "text",
 ];
+
+/**
+ * Formats LNKZ can read back. LaTeX is a one-way door: it is a typesetting
+ * language, and parsing one back into a conversation would be a compiler, not an
+ * importer. The flag is on the result so a caller can tell the difference rather
+ * than discovering it when a re-import fails.
+ */
+export const REIMPORTABLE_FORMATS: ExportFormat[] = EXPORT_FORMATS.filter((format) => format !== "latex");
 
 export interface ExportResult {
   format: ExportFormat;
@@ -54,6 +64,8 @@ export function exportConversation(conversation: Conversation, format: ExportFor
       return result(conversation, format, "application/json", "json", JSON.stringify(toClaude(conversation), null, 2), true);
     case "lnkz":
       return result(conversation, format, "application/json", "json", JSON.stringify(toPacket(conversation), null, 2), true);
+    case "latex":
+      return result(conversation, format, "application/x-tex", "tex", toLatex(conversation), false);
     default:
       return result(conversation, "text", "text/plain", "txt", toPlainText(conversation), true);
   }

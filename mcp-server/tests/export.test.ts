@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EXPORT_FORMATS, exportConversation, toOpenAi } from "../src/export/index.js";
+import { EXPORT_FORMATS, REIMPORTABLE_FORMATS, exportConversation, toOpenAi } from "../src/export/index.js";
 import { detectFormat, importConversations } from "../src/import/index.js";
 import type { Conversation } from "../src/types.js";
 
@@ -29,7 +29,7 @@ function conversation(): Conversation {
 }
 
 function bodies(source: Conversation) {
-  return Object.fromEntries(EXPORT_FORMATS.map((format) => [format, exportConversation(source, format).body]));
+  return Object.fromEntries(REIMPORTABLE_FORMATS.map((format) => [format, exportConversation(source, format).body]));
 }
 
 test("every export format produces content, a mime type, and a filename", () => {
@@ -39,6 +39,15 @@ test("every export format produces content, a mime type, and a filename", () => 
     assert.ok(result.body.trim().length > 0, `${format} produced nothing`);
     assert.ok(result.mimeType.includes("/"), `${format} has no mime type`);
     assert.match(result.filename, /^storage-decision\./, `${format} filename is wrong: ${result.filename}`);
+  }
+});
+
+test("LaTeX is declared one-way, because it is a typesetting language not a data format", () => {
+  const result = exportConversation(conversation(), "latex");
+  assert.equal(result.reimportable, false);
+  assert.equal(REIMPORTABLE_FORMATS.includes("latex"), false);
+  for (const format of REIMPORTABLE_FORMATS) {
+    assert.equal(exportConversation(conversation(), format).reimportable, true, `${format} should re-import`);
   }
 });
 
@@ -120,4 +129,56 @@ test("the brief variant carries the decisions the plain transcript does not", ()
   assert.equal(plain.includes("## Decisions"), false);
   assert.ok(brief.includes("## Decisions"));
   assert.ok(brief.includes("SQLite"));
+});
+
+test("the LaTeX export is a complete document with the analysis above the transcript", () => {
+  const body = exportConversation(conversation(), "latex").body;
+  assert.ok(body.includes("\\documentclass[11pt,a4paper]{article}"));
+  assert.ok(body.includes("\\begin{document}"));
+  assert.ok(body.includes("\\end{document}"));
+  assert.ok(body.includes("\\title{Storage decision}"));
+  assert.ok(body.includes("\\begin{abstract}"));
+  assert.ok(body.indexOf("Decisions") < body.indexOf("Transcript"), "decisions come first");
+  assert.match(exportConversation(conversation(), "latex").filename, /\.tex$/);
+});
+
+test("every LaTeX special character is escaped rather than breaking the build", () => {
+  const source = conversation();
+  source.messages = [{
+    id: "m1",
+    role: "user",
+    content: "Costs $5 & 100% of C:\\path_to\\file #1 ~ x^2 {braces}",
+    createdAt: "2026-03-01T10:00:00.000Z",
+  }];
+
+  const body = exportConversation(source, "latex").body;
+  assert.ok(body.includes("\\$5"), "dollar");
+  assert.ok(body.includes("\\&"), "ampersand");
+  assert.ok(body.includes("100\\%"), "percent");
+  assert.ok(body.includes("path\\_to"), "underscore");
+  assert.ok(body.includes("\\#1"), "hash");
+  assert.ok(body.includes("\\textasciitilde{}"), "tilde");
+  assert.ok(body.includes("\\textasciicircum{}"), "caret");
+  assert.ok(body.includes("\\{braces\\}"), "braces");
+  assert.ok(body.includes("\\textbackslash{}"), "backslash");
+
+  // The escapes must not have been escaped in turn, which is the classic failure.
+  assert.equal(body.includes("\\textbackslash{}textbackslash"), false);
+  // And ordinary spaces must survive, which they do not if the sentinel leaks.
+  assert.ok(body.includes("Costs "), "spaces intact");
+});
+
+test("fenced code goes into verbatim and is not escaped there", () => {
+  const source = conversation();
+  source.messages = [{
+    id: "m1",
+    role: "assistant",
+    content: "Run this:\n\n```bash\nexport A=$B && echo 100%\n```\n\nThen restart.",
+    createdAt: "2026-03-01T10:00:00.000Z",
+  }];
+
+  const body = exportConversation(source, "latex").body;
+  assert.ok(body.includes("\\begin{Verbatim}"));
+  assert.ok(body.includes("export A=$B && echo 100%"), "code is left alone inside verbatim");
+  assert.ok(body.includes("Then restart."), "prose after the fence survives");
 });

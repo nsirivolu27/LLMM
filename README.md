@@ -53,8 +53,15 @@ ended up to wherever it started.
 
 **Lets it leave again.** Import without export is lock-in with extra steps. A conversation
 writes back out as a Markdown transcript, a brief with the decisions on top, a
-chat-completions payload you can paste into an API call, or a ChatGPT- or Claude-shaped
-export. Every format re-imports, and there are round-trip tests that prove it.
+chat-completions payload you can paste into an API call, a ChatGPT- or Claude-shaped export,
+or a LaTeX document that compiles to a PDF as it stands. Every format except LaTeX re-imports,
+and there are round-trip tests that prove it.
+
+**Shows you what the corpus knows.** Search answers which chat mentioned something. It cannot
+answer what a body of conversations has settled, which decisions everything else leans on, or
+which chats stand alone. That is a question about structure, so LNKZ builds a graph: nodes for
+conversations, decisions, open questions and shared topics, edges for lineage, shared subject
+matter, near duplicates and contradictions. Every edge carries the reason it exists.
 
 **Searches the work around the chat.** One question spans your saved conversations plus Slack,
 Jira, Figma, documentation feeds, and any other MCP server you connect.
@@ -151,7 +158,9 @@ rule based, which means it costs nothing, works offline, and gives the same answ
 | **Continue** | Lineage across clients, so a relayed thread stays one thread. |
 | **Reconcile** | Near-duplicate detection, and flags when two conversations decided differently. |
 | **Connect** | Slack, Jira, Figma, documentation feeds, and any MCP server. Failure-isolated. |
-| **Reach** | 21 MCP tools, 4 resources, 4 prompts, over HTTP and stdio. Plus REST and a web console. |
+| **Graph** | Structure over the corpus: hubs, contradictions, duplicates, and conversations connected to nothing. |
+| **Publish** | Discover what a downstream MCP server can do and prepare the call. It never sends it. |
+| **Reach** | 24 MCP tools, 5 resources, 4 prompts, over HTTP and stdio. Plus REST and a web console. |
 
 ## Integrations
 
@@ -203,7 +212,7 @@ two mistakes that cause almost every first deploy to fail.
 
 ## Project status
 
-Working MVP, single user, self-hosted. 62 tests plus an end-to-end smoke test that boots the
+Working MVP, single user, self-hosted. 85 tests plus an end-to-end smoke test that boots the
 built server and drives it over both REST and MCP.
 
 ```bash

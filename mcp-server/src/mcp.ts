@@ -5,7 +5,7 @@ import { importConversations } from "./import/index.js";
 import { analyzeConversation } from "./intel/analyze.js";
 import { detectConflicts, detectDuplicates } from "./intel/conflict.js";
 import { buildContextPacket } from "./intel/packet.js";
-import { registerExportTool } from "./export/wire.js";
+import { registerSurfaces } from "./surfaces.js";
 import {
   analyzeSchema,
   appendMessagesSchema,
@@ -180,7 +180,7 @@ export function createLnkzMcpServer(
     },
   );
 
-  registerExportTool(server, store);
+  registerSurfaces(server, store);
 
   server.registerTool(
     "delete_conversation",

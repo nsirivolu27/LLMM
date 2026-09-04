@@ -10,7 +10,12 @@
   detection and a dry run
 - A structural importer that locates the conversation in an export LNKZ has never seen,
   instead of shipping a guessed parser per vendor
-- Export in seven formats, every one of them re-importable, with round-trip tests
+- Export in eight formats including a compilable LaTeX document, every other one re-importable,
+  with round-trip tests
+- A graph over the corpus: conversations, decisions, open questions and shared topics, with
+  lineage, similarity and contradiction edges that each carry their reason
+- Discovery of downstream MCP servers, and preparing a conversation for one of their tools
+  without sending anything
 - Conversation lineage across clients
 
 **Context intelligence**

@@ -27,7 +27,7 @@ the working directory. `.mcp.json` in this repository already does that.
 | --- | --- |
 | `save_conversation` | Store a normalized chat from any client or device |
 | `import_conversation` | Normalize a ChatGPT, Claude, Gemini, chat-completions, LNKZ, Markdown, or plain-text payload, or find the conversation structurally in an export LNKZ has never seen. Auto-detects; `dryRun` previews without writing |
-| `export_conversation` | Write a conversation back out in another client's format: `markdown`, `markdown-brief`, `openai`, `chatgpt`, `claude`, `lnkz`, `text`. Every format re-imports |
+| `export_conversation` | Write a conversation back out in another client's format: `markdown`, `markdown-brief`, `openai`, `chatgpt`, `claude`, `lnkz`, `latex`, `text` |
 | `get_conversation` | Full conversation, lineage, extracted claims, and Markdown transcript |
 | `list_conversations` | Newest first, filterable by provider, tag, or participant |
 | `search_conversations` | Ranked full-text search with snippets |
@@ -52,6 +52,28 @@ the working directory. `.mcp.json` in this repository already does that.
 | `analyze_conversation` | Extract claims and topics from one conversation |
 | `find_conflicts` | Decisions across conversations that appear to disagree |
 | `find_duplicates` | Conversations whose transcripts overlap heavily |
+| `build_context_graph` | Nodes for conversations, decisions, open questions and shared topics; edges for lineage, shared subject matter, near duplicates and contradictions |
+
+### Publishing
+
+Sending context onward is split in two on purpose. LNKZ prepares the call and shows it; making
+the call is a separate, deliberate act. A context relay that can silently write into your team's
+Jira is a different and more dangerous product than one that cannot.
+
+| Tool | Purpose |
+| --- | --- |
+| `list_publish_targets` | Connect to each configured downstream MCP server and list its tools, marking which look like writes |
+| `prepare_publish` | Map a conversation onto a remote tool's input schema and return the exact call, including the required fields it could not fill. Sends nothing |
+
+Targets are configured with `LNKZ_MCP_TARGETS`, a comma-separated list of `name=url` with an
+optional `|key`:
+
+```
+LNKZ_MCP_TARGETS=jira=https://jira.example/mcp|abc123,notes=http://localhost:9000/mcp
+```
+
+A malformed entry is reported and skipped rather than guessed at, because a typo in a URL here
+is a request sent somewhere unintended.
 
 ### Federation and operations
 
@@ -69,6 +91,7 @@ the working directory. `.mcp.json` in this repository already does that.
 | `lnkz://connectors` | Connector inventory (JSON) |
 | `lnkz://stats` | Workspace statistics (JSON) |
 | `lnkz://conversations` | The 25 most recently updated conversations (JSON) |
+| `lnkz://graph` | The conversation graph over the 50 most recent conversations (JSON) |
 | `lnkz://conversation/{id}` | One conversation as a Markdown transcript with its decisions |
 
 ## Prompts
@@ -121,6 +144,9 @@ Supplying a saved UUID as `id` updates the conversation without changing its cre
 | `POST` | `/api/conversations/search` | Ranked search |
 | `POST` | `/api/conversations/import` | Import, with `dryRun` |
 | `GET` | `/api/conversations/:id/export` | Export, with `?format=` |
+| `GET` | `/api/graph` | The conversation graph. `Accept: text/markdown` returns the readable summary |
+| `GET` | `/api/publish/targets` | Downstream MCP servers and their tools |
+| `POST` | `/api/publish/prepare` | The call that would be made. Sends nothing |
 | `POST` | `/api/conversations/:id/handoffs` | Create a handoff |
 | `GET` | `/api/handoffs` | List handoffs |
 | `DELETE` | `/api/handoffs/:id` | Revoke |
@@ -169,9 +195,18 @@ Import accepts these, and `auto` picks between them:
 | `generic` | An export LNKZ has never seen. Instead of guessing the vendor, it finds the message array or the prompt and response pairs structurally, and says in a warning that it did |
 
 Export writes `markdown`, `markdown-brief` (decisions and open questions above the
-transcript), `openai`, `chatgpt`, `claude`, `lnkz`, and `text`. Every one of them re-imports:
-there are round-trip tests asserting a conversation exported and read back is the same
-conversation.
+transcript), `openai`, `chatgpt`, `claude`, `lnkz`, `latex`, and `text`. Every one except
+LaTeX re-imports, and there are round-trip tests asserting a conversation exported and read
+back is the same conversation.
+
+`latex` produces a standalone document that compiles with `pdflatex` as it stands: preamble,
+title, abstract from the summary, the extracted decisions and open questions above the
+transcript, and fenced code in `Verbatim` blocks. LaTeX is a one-way door and says so in the
+result, because reading one back into a conversation would be a compiler rather than an
+importer. Every special character is escaped, which is most of the work: a chat transcript is
+full of unescaped backslashes, underscores in identifiers, dollar signs in shell snippets and
+percent signs in numbers, any one of which turns a document into a compile error or silently
+eats the rest of a line.
 
 ## Connector configuration
 
