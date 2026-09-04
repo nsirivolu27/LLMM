@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { rateLimit, requireApiKey, validateOrigin, withLoopback } from "./auth.js";
+import { rateLimit, requireApiKey, requestClientKey, validateOrigin, withLoopback } from "./auth.js";
 import { connectorStatuses } from "./connectors/index.js";
 import { importConversations } from "./import/index.js";
 import { analyzeConversation } from "./intel/analyze.js";
@@ -27,6 +27,7 @@ import {
 } from "./schemas.js";
 import { aggregateSearch } from "./search.js";
 import { createRuntime } from "./runtime.js";
+import type { PostgresRateLimiter } from "./store/rate-limit.js";
 import type { Conversation } from "./types.js";
 
 const host = process.env.HOST?.trim() || "127.0.0.1";
@@ -35,7 +36,7 @@ const publicBaseUrl = process.env.LNKZ_PUBLIC_BASE_URL || `http://${host}:${port
 const allowedHosts = withLoopback(splitList(process.env.ALLOWED_HOSTS), port);
 
 const app = createMcpExpressApp({ host, allowedHosts: allowedHosts.length ? allowedHosts : undefined });
-const { store, core, connectors } = createRuntime();
+const { store, core, connectors, sharedRateLimiter } = createRuntime();
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: process.env.LNKZ_MAX_BODY || "24mb" }));
@@ -44,6 +45,14 @@ app.use(validateOrigin);
 /** Share links are unauthenticated by design, so they get their own budget. */
 const shareLimiter = rateLimit({ windowMs: 60_000, max: Number(process.env.LNKZ_SHARE_RATE_LIMIT ?? 60) });
 const apiLimiter = rateLimit({ windowMs: 60_000, max: Number(process.env.LNKZ_API_RATE_LIMIT ?? 600) });
+const sharedShareLimiter = sharedRateLimitMiddleware(sharedRateLimiter, {
+  windowMs: 60_000,
+  max: Number(process.env.LNKZ_SHARE_RATE_LIMIT ?? 60),
+});
+const sharedApiLimiter = sharedRateLimitMiddleware(sharedRateLimiter, {
+  windowMs: 60_000,
+  max: Number(process.env.LNKZ_API_RATE_LIMIT ?? 600),
+});
 
 app.get("/health", (_request, response) => {
   response.json({
@@ -70,7 +79,7 @@ app.get("/api/events", requireApiKey, async (request, response) => {
 
 // ------------------------------------------------------------------ conversations
 
-app.post("/api/conversations", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/conversations", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     const conversation = await store.save(conversationInputSchema.parse(request.body));
     response.status(201).json({ conversation });
@@ -94,7 +103,7 @@ app.get("/api/conversations", requireApiKey, async (request, response) => {
   }
 });
 
-app.post("/api/conversations/search", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/conversations/search", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     const input = searchConversationsSchema.parse(request.body);
     response.json({ matches: await store.search(input.query, input.limit) });
@@ -103,7 +112,7 @@ app.post("/api/conversations/search", requireApiKey, apiLimiter, async (request,
   }
 });
 
-app.post("/api/conversations/import", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/conversations/import", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     const input = importSchema.parse(request.body);
     const result = importConversations(input.payload, input.format);
@@ -150,7 +159,7 @@ app.delete("/api/conversations/:id", requireApiKey, async (request, response) =>
   response.status(204).end();
 });
 
-app.post("/api/conversations/:id/messages", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/conversations/:id/messages", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     const input = appendMessagesSchema.parse({
       conversationId: pathParam(request.params.id),
@@ -171,7 +180,7 @@ mountSurfaceRoutes(app, store, requireApiKey);
 
 // ----------------------------------------------------------------------- handoffs
 
-app.post("/api/conversations/:id/handoffs", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/conversations/:id/handoffs", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     const options = createHandoffSchema.parse({ ...request.body, conversationId: pathParam(request.params.id) });
     const handoff = await store.createHandoff(options);
@@ -194,7 +203,7 @@ app.delete("/api/handoffs/:id", requireApiKey, async (request, response) => {
   response.status(204).end();
 });
 
-app.get("/share/:token", shareLimiter, async (request, response) => {
+app.get("/share/:token", shareLimiter, sharedShareLimiter, async (request, response) => {
   const packet = await store.redeemHandoff(pathParam(request.params.token));
   if (!packet) {
     response.status(404).json({ error: "Handoff is invalid, revoked, exhausted, or expired." });
@@ -211,7 +220,7 @@ app.get("/share/:token", shareLimiter, async (request, response) => {
 
 // ------------------------------------------------------------------------ context
 
-app.post("/api/context/search", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/context/search", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     response.json(await aggregateSearch(connectors, contextSearchSchema.parse(request.body)));
   } catch (error) {
@@ -219,7 +228,7 @@ app.post("/api/context/search", requireApiKey, apiLimiter, async (request, respo
   }
 });
 
-app.post("/api/context/packet", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/api/context/packet", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   try {
     const input = contextPacketSchema.parse(request.body);
     if (!input.query && !input.conversationIds?.length) {
@@ -260,7 +269,7 @@ app.get("/api/context/duplicates", requireApiKey, async (request, response) => {
 
 // ---------------------------------------------------------------------------- MCP
 
-app.post("/mcp", requireApiKey, apiLimiter, async (request, response) => {
+app.post("/mcp", requireApiKey, apiLimiter, sharedApiLimiter, async (request, response) => {
   const server = createLnkzMcpServer(store, connectors, publicBaseUrl);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   response.on("close", () => {
@@ -317,6 +326,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
     httpServer.close(() => {
       store.close();
+      sharedRateLimiter?.close();
       process.exit(0);
     });
   });
@@ -351,4 +361,28 @@ function numberParam(value: unknown, fallback: number): number {
 
 function splitList(value: string | undefined): string[] {
   return (value ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function sharedRateLimitMiddleware(
+  limiter: PostgresRateLimiter | undefined,
+  options: { windowMs: number; max: number },
+): express.RequestHandler {
+  return async (request, response, next) => {
+    if (!limiter) {
+      next();
+      return;
+    }
+    try {
+      const result = await limiter.allow(requestClientKey(request), options);
+      if (result.allowed) {
+        next();
+        return;
+      }
+      response.setHeader("retry-after", result.retryAfter);
+      response.status(429).json({ error: "Too many requests." });
+    } catch (error) {
+      console.error("[rate-limit] shared limiter failed", error);
+      response.status(503).json({ error: "Rate limiting is temporarily unavailable." });
+    }
+  };
 }

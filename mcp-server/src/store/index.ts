@@ -36,4 +36,5 @@ export interface ConversationStore {
 }
 
 export { SqliteConversationStore } from "./sqlite.js";
+export { PostgresConversationStore } from "./postgres.js";
 export { conversationToMarkdown, conversationToMarkdownWithAnalysis } from "./markdown.js";

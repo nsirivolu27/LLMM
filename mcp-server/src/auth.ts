@@ -90,6 +90,10 @@ function clientKey(request: Request): string {
   return request.ip ?? request.socket.remoteAddress ?? "unknown";
 }
 
+export function requestClientKey(request: Request): string {
+  return clientKey(request);
+}
+
 function pruneExpired(hits: Map<string, { count: number; resetAt: number }>, now: number): void {
   for (const [key, entry] of hits) {
     if (entry.resetAt <= now) hits.delete(key);
