@@ -1,4 +1,5 @@
 # LNKZ
+ 
 
 LNKZ is a self-hostable MCP server that carries conversation context between people,
 devices, and LLM clients.
