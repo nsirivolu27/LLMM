@@ -10,9 +10,23 @@ dist/
 .vscode/
 .DS_Store
 node_modules/
+.data/
+mcp-server/.data/
 backend/media/
 backend/staticfiles/
 pipeline/.pytest_cache/
 geo-service/target/
 *.log
 
+# LNKZ SQLite store
+.data/
+*.db
+*.db-wal
+*.db-shm
+.testbuild/
+
+# Files staged for you to delete (remote tools cannot unlink)
+_to_delete/
+
+# Graphify output is generated; rebuild it with: graphify . --update
+graphify-out/

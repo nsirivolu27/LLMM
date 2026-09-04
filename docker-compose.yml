@@ -1,51 +1,24 @@
-version: "3.9"
-
 services:
-  db:
-    image: postgis/postgis:16-3.4
+  lnkz:
+    build:
+      context: .
+      dockerfile: mcp-server/Dockerfile
     environment:
-      POSTGRES_DB: lnkz
-      POSTGRES_USER: lnkz
-      POSTGRES_PASSWORD: lnkz
+      HOST: 0.0.0.0
+      PORT: 3100
+      LNKZ_API_KEY: ${LNKZ_API_KEY:-change-me}
+      LNKZ_PUBLIC_BASE_URL: ${LNKZ_PUBLIC_BASE_URL:-http://localhost:3100}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3100}
+      LNKZ_DB_FILE: /app/data/lnkz.db
+    env_file:
+      - path: mcp-server/.env
+        required: false
     ports:
-      - "5432:5432"
+      - "3100:3100"
+    volumes:
+      - lnkz-data:/app/data
+    restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  backend:
-    build: ./backend
-    env_file: .env.example
-    depends_on:
-      - db
-      - redis
-    ports:
-      - "8000:8000"
-
-  pipeline:
-    build: ./pipeline
-    env_file: .env.example
-    depends_on:
-      - redis
-      - db
-    ports:
-      - "8001:8001"
-
-  worker:
-    build: ./pipeline
-    env_file: .env.example
-    command: celery -A app.worker.celery_app worker --loglevel=info
-    depends_on:
-      - redis
-      - db
-
-  geo-service:
-    build: ./geo-service
-    env_file: .env.example
-    depends_on:
-      - db
-    ports:
-      - "8080:8080"
-
+volumes:
+  lnkz-data:
