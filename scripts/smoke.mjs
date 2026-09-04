@@ -13,12 +13,16 @@
  *   node scripts/smoke.mjs http://host:port  # tests an already-running server
  */
 import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 
 const external = process.argv[2];
+const execFileAsync = promisify(execFile);
+const postgresUrl = process.env.SMOKE_DATABASE_URL;
 const apiKey = process.env.LNKZ_API_KEY ?? randomBytes(12).toString("hex");
 const port = Number(process.env.SMOKE_PORT ?? 3199);
 const baseUrl = external ?? `http://127.0.0.1:${port}`;
@@ -70,6 +74,13 @@ async function mcp(method, params, id) {
 
 async function boot() {
   dataDir = await mkdtemp(join(tmpdir(), "lnkz-smoke-"));
+  if (postgresUrl) {
+    console.log("Running Postgres migrations for smoke test...");
+    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+    await execFileAsync(npm, ["--prefix", "mcp-server", "run", "db:migrate"], {
+      env: { ...process.env, DATABASE_URL: postgresUrl },
+    });
+  }
   child = spawn(process.execPath, ["dist/server.js"], {
     cwd: new URL("../mcp-server/", import.meta.url).pathname,
     env: {
@@ -79,6 +90,10 @@ async function boot() {
       LNKZ_API_KEY: apiKey,
       LNKZ_DB_FILE: join(dataDir, "lnkz.db"),
       LNKZ_DATA_FILE: join(dataDir, "absent.json"),
+      DATABASE_URL: postgresUrl ?? "",
+      DATABASE_SSL: postgresUrl ? (process.env.DATABASE_SSL ?? "false") : "false",
+      LNKZ_POSTGRES_WORKSPACE_ID: process.env.LNKZ_POSTGRES_WORKSPACE_ID
+        ?? "00000000-0000-4000-8000-000000000001",
       LNKZ_PUBLIC_BASE_URL: baseUrl,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -103,7 +118,7 @@ async function main() {
     console.log("Booting the built server...");
     await boot();
   }
-  console.log(`Smoke testing ${baseUrl}\n`);
+  console.log(`Smoke testing ${baseUrl} (${postgresUrl ? "Postgres" : "SQLite"})\n`);
 
   const health = await request("/health");
   check("health reports the service and its connectors", health.status === 200 && health.body?.service === "lnkz");

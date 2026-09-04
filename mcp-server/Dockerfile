@@ -23,6 +23,7 @@ WORKDIR /app
 COPY mcp-server/package.json mcp-server/package-lock.json ./
 RUN npm ci --omit=dev && mkdir -p /app/data && chown -R node:node /app
 COPY --from=server-build /workspace/mcp-server/dist ./dist
+COPY --from=server-build /workspace/mcp-server/src/store/migrations ./dist/store/migrations
 COPY --from=web-build /workspace/dist ./public
 USER node
 EXPOSE 3100

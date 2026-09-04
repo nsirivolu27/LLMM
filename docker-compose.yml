@@ -11,6 +11,9 @@ services:
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3100}
       LNKZ_DB_FILE: /app/data/lnkz.db
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      LNKZ_POSTGRES_WORKSPACE_ID: ${LNKZ_POSTGRES_WORKSPACE_ID:-00000000-0000-4000-8000-000000000001}
     env_file:
       - path: mcp-server/.env
         required: false
@@ -20,5 +23,21 @@ services:
       - lnkz-data:/app/data
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lnkz}
+      POSTGRES_USER: ${POSTGRES_USER:-lnkz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lnkz-dev-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - lnkz-postgres:/var/lib/postgresql/data
+
 volumes:
   lnkz-data:
+  lnkz-postgres:
