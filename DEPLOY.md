@@ -6,6 +6,24 @@ a handoff token travels in a URL.
 
 Fly is the default below. Render is equivalent and covered at the end.
 
+## 0. Build it locally first
+
+Do this before anything else. The container's first stage runs the same web build, so a
+failure here is a failure there, and finding it locally takes seconds instead of a deploy
+cycle.
+
+```powershell
+npm install
+npm ci --prefix mcp-server
+npm run typecheck
+npm test
+npm run build
+node scripts/smoke.mjs
+```
+
+`npm run build` should leave `dist/index.html` and `dist/console.html` next to a hashed
+`dist/assets/` folder. If it does not, stop and fix that before touching Fly.
+
 ## Before you start
 
 You need the Fly CLI and an account:
