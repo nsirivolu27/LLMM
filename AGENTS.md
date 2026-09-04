@@ -42,7 +42,10 @@ node scripts/smoke.mjs
 The smoke test boots the built server and drives it over REST and MCP. Add a check there for
 anything that could break in wiring rather than in logic.
 
-## Archived code
+## Generated and historical files
 
-`legacy/geo-social/` is the first-generation prototype. It is outside the active build and
-should not be extended.
+Nothing generated belongs in the repository. `dist/`, `graphify-out/`, logs, bundles and
+archives are all ignored, and a rebuild should always be cheaper than a checkout.
+
+The geo-social prototype this repository started as has been removed from the working tree.
+It is in history before `b286e13` if you ever need it. Do not restore or extend it.

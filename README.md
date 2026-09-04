@@ -206,5 +206,5 @@ npm test && npm run typecheck && npm run build && node scripts/smoke.mjs
 **Not there yet:** accounts and workspaces, more than one instance, semantic search, OAuth for
 connectors, and writing back to connected systems. See [ROADMAP.md](ROADMAP.md).
 
-The first-generation geo-social prototype that used to live here is archived under
-`legacy/geo-social/`.
+This repository began as an unrelated geo-social photo sharing prototype. That code was
+removed from the working tree and lives only in history, before commit `b286e13`.
