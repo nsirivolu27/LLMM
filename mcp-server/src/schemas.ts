@@ -2,7 +2,9 @@ import { z } from "zod";
 
 export const connectorIdSchema = z.enum(["lnkz", "slack", "jira", "figma", "documents", "fantasy"]);
 
-export const importFormatSchema = z.enum(["auto", "chatgpt", "claude", "gemini", "lnkz", "markdown", "text"]);
+export const importFormatSchema = z.enum([
+  "auto", "chatgpt", "claude", "gemini", "openai", "lnkz", "generic", "markdown", "text",
+]);
 
 export const lineageSchema = z.object({
   parentId: z.string().uuid().optional(),

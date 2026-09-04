@@ -14,6 +14,7 @@ const EXPECTED_TOOLS = [
   "continue_handoff",
   "create_handoff",
   "delete_conversation",
+  "export_conversation",
   "find_conflicts",
   "find_duplicates",
   "get_conversation",
@@ -178,4 +179,38 @@ test("conversation resources render as portable Markdown", async (t) => {
 
   const stats = await client.readResource({ uri: "lnkz://stats" });
   assert.equal(JSON.parse((stats.contents[0] as { text: string }).text).conversations, 1);
+});
+
+test("a conversation can be exported back out to another client's format over MCP", async (t) => {
+  const { client } = await connect(t);
+
+  const saved = structured<{ conversation: { id: string } }>(await client.callTool({
+    name: "save_conversation",
+    arguments: {
+      title: "Export over MCP",
+      source: { provider: "chatgpt" },
+      messages: [
+        { role: "user", content: "Which store did we pick?" },
+        { role: "assistant", content: "We decided to use SQLite." },
+      ],
+    },
+  })).conversation;
+
+  const exported = await client.callTool({
+    name: "export_conversation",
+    arguments: { conversationId: saved.id, format: "openai" },
+  });
+  const meta = structured<{ format: string; mimeType: string; reimportable: boolean }>(exported);
+  assert.equal(meta.format, "openai");
+  assert.equal(meta.mimeType, "application/json");
+  assert.equal(meta.reimportable, true);
+
+  const payload = JSON.parse(textOf(exported)) as { messages: { role: string }[] };
+  assert.deepEqual(payload.messages.map((message) => message.role), ["user", "assistant"]);
+
+  const missing = await client.callTool({
+    name: "export_conversation",
+    arguments: { conversationId: "00000000-0000-4000-8000-000000000000" },
+  });
+  assert.equal(missing.isError, true);
 });

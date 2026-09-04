@@ -87,6 +87,21 @@ export function buildConversation(options: {
   };
 }
 
+/**
+ * Anything before the first attributed speaker is document furniture, not a turn.
+ * A transcript usually opens with a title, and LNKZ's own exports add a source
+ * line, a timestamp, participants, tags and a summary on top of that. A reader
+ * that takes all of it literally hands back the conversation plus its own header,
+ * which is how a document grows every time it is exported and imported again.
+ *
+ * The rule only applies when the document has at least one attributed speaker.
+ * With none, the text is unattributed prose and its opening is the content.
+ */
+export function dropPreamble<T extends { attributed: boolean }>(messages: T[]): T[] {
+  const first = messages.findIndex((message) => message.attributed);
+  return first <= 0 ? messages : messages.slice(first);
+}
+
 /** A first line makes a better title than "Untitled" and costs nothing. */
 export function titleFromMessages(messages: MessageInput[], fallback: string): string {
   const first = messages.find((message) => message.role === "user") ?? messages[0];

@@ -31,8 +31,9 @@ The conversation was the work. It should not be stuck in the client that happene
 ## What LNKZ does
 
 **Brings a chat in from anywhere.** Drop in a ChatGPT export, a Claude export, a Gemini
-payload, a Markdown transcript, or just text you copied out of a window. LNKZ figures out the
-format and normalizes it. ChatGPT exports are handled properly: because editing a message
+payload, a chat-completions message array, a Markdown transcript, or just text you copied out
+of a window. For an export LNKZ has never seen, it finds the conversation structurally rather
+than guessing the vendor, and tells you it did. LNKZ figures out the format and normalizes it. ChatGPT exports are handled properly: because editing a message
 branches the conversation, the export is a tree, and LNKZ reconstructs the thread you actually
 saw instead of interleaving drafts you abandoned.
 
@@ -49,6 +50,11 @@ a working one.
 **Keeps the thread whole across clients.** Continue a handed-off conversation somewhere else
 and the new thread points back at the original, so you can walk the chain from wherever it
 ended up to wherever it started.
+
+**Lets it leave again.** Import without export is lock-in with extra steps. A conversation
+writes back out as a Markdown transcript, a brief with the decisions on top, a
+chat-completions payload you can paste into an API call, or a ChatGPT- or Claude-shaped
+export. Every format re-imports, and there are round-trip tests that prove it.
 
 **Searches the work around the chat.** One question spans your saved conversations plus Slack,
 Jira, Figma, documentation feeds, and any other MCP server you connect.
@@ -137,14 +143,15 @@ rule based, which means it costs nothing, works offline, and gives the same answ
 
 | | |
 | --- | --- |
-| **Import** | ChatGPT, Claude, Gemini, LNKZ packets, Markdown, plain text. Auto-detected. Preview before writing. |
+| **Import** | ChatGPT, Claude, Gemini, chat-completions, LNKZ packets, Markdown, plain text, plus a structural reader for unknown exports. Auto-detected. Preview before writing. |
 | **Understand** | Decisions, open questions, action items, cited facts, topics. Each traced to the message it came from. |
 | **Package** | Token-budgeted context packets for the next model. |
+| **Export** | Back out as Markdown, a brief, a chat-completions payload, or a ChatGPT- or Claude-shaped export. All re-importable. |
 | **Share** | Expiring, use-limited, revocable links. Hashed tokens. Optional secret redaction. Full audit trail. |
 | **Continue** | Lineage across clients, so a relayed thread stays one thread. |
 | **Reconcile** | Near-duplicate detection, and flags when two conversations decided differently. |
 | **Connect** | Slack, Jira, Figma, documentation feeds, and any MCP server. Failure-isolated. |
-| **Reach** | 20 MCP tools, 4 resources, 4 prompts, over HTTP and stdio. Plus REST and a web console. |
+| **Reach** | 21 MCP tools, 4 resources, 4 prompts, over HTTP and stdio. Plus REST and a web console. |
 
 ## Integrations
 
@@ -196,7 +203,7 @@ two mistakes that cause almost every first deploy to fail.
 
 ## Project status
 
-Working MVP, single user, self-hosted. 44 tests plus an end-to-end smoke test that boots the
+Working MVP, single user, self-hosted. 62 tests plus an end-to-end smoke test that boots the
 built server and drives it over both REST and MCP.
 
 ```bash

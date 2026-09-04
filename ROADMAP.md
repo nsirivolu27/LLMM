@@ -5,8 +5,12 @@
 **Portability**
 
 - Provider-neutral `lnkz.conversation.v1` schema and Markdown transcripts
-- Importers for ChatGPT tree exports, Claude exports, Gemini payloads, LNKZ packets,
-  Markdown transcripts, and unlabeled pasted text, with detection and a dry run
+- Importers for ChatGPT tree exports, Claude exports, Gemini payloads, chat-completions
+  message arrays, LNKZ packets, Markdown transcripts, and unlabeled pasted text, with
+  detection and a dry run
+- A structural importer that locates the conversation in an export LNKZ has never seen,
+  instead of shipping a guessed parser per vendor
+- Export in seven formats, every one of them re-importable, with round-trip tests
 - Conversation lineage across clients
 
 **Context intelligence**

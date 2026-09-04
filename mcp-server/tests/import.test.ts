@@ -160,3 +160,107 @@ test("bad input fails loudly instead of storing an empty conversation", () => {
   assert.throws(() => importConversations("{not json", "chatgpt"), /not valid JSON/);
   assert.throws(() => importConversations(JSON.stringify([{ mapping: {}, current_node: "" }]), "chatgpt"), /No conversations found/);
 });
+
+test("the chat-completions message array imports, which covers far more than OpenAI", () => {
+  const result = importConversations(JSON.stringify({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: "You are terse." },
+      { role: "user", content: "Which store should the relay use?" },
+      { role: "assistant", content: "SQLite. It removes the deployment dependency." },
+    ],
+  }));
+
+  assert.equal(result.format, "openai");
+  const conversation = result.conversations[0];
+  assert.deepEqual(conversation.messages.map((message) => message.role), ["system", "user", "assistant"]);
+  assert.equal(conversation.source.app, "chat-completions/gpt-4o");
+});
+
+test("a bare message array is one conversation, not many empty ones", () => {
+  const result = importConversations(JSON.stringify([
+    { role: "user", content: "First question here." },
+    { role: "assistant", content: "First answer here." },
+  ]));
+  assert.equal(result.format, "openai");
+  assert.equal(result.conversations.length, 1);
+  assert.equal(result.conversations[0].messages.length, 2);
+});
+
+test("a batch of message arrays imports as separate conversations", () => {
+  const result = importConversations(JSON.stringify([
+    { messages: [{ role: "user", content: "Thread one opening line." }] },
+    { messages: [{ role: "user", content: "Thread two opening line." }] },
+  ]));
+  assert.equal(result.conversations.length, 2);
+});
+
+test("an assistant turn that only calls a tool keeps its place in the thread", () => {
+  const result = importConversations(JSON.stringify({
+    messages: [
+      { role: "user", content: "Search the league." },
+      { role: "assistant", content: null, tool_calls: [{ type: "function", function: { name: "search_league" } }] },
+      { role: "tool", content: "Two results." },
+    ],
+  }));
+  const contents = result.conversations[0].messages.map((message) => message.content);
+  assert.deepEqual(contents, ["Search the league.", "[tool call: search_league]", "Two results."]);
+});
+
+test("an unknown export is located structurally rather than guessed at by vendor", () => {
+  const result = importConversations(JSON.stringify({
+    meta: { app: "some-new-assistant", version: 3 },
+    thread: {
+      title: "Deployment questions",
+      entries: [
+        { speaker: "user", body: "Where does the database live in production?" },
+        { speaker: "assistant", body: "On a mounted volume, so a redeploy does not wipe it." },
+        { speaker: "user", body: "And the backups?" },
+      ],
+    },
+  }));
+
+  assert.equal(result.format, "generic");
+  const conversation = result.conversations[0];
+  assert.equal(conversation.title, "Deployment questions");
+  assert.deepEqual(conversation.messages.map((message) => message.role), ["user", "assistant", "user"]);
+  assert.ok(result.warnings.some((warning) => warning.includes("not recognized")));
+});
+
+test("prompt and response pairs become two turns each", () => {
+  const result = importConversations(JSON.stringify({
+    session: {
+      name: "Copilot session",
+      turns: [
+        { prompt: "Why is this test failing?", response: "The fixture is stale." },
+        { prompt: "How do I refresh it?", response: "Re-run the generator." },
+      ],
+    },
+  }));
+
+  assert.equal(result.format, "generic");
+  const messages = result.conversations[0].messages;
+  assert.equal(messages.length, 4);
+  assert.deepEqual(messages.map((message) => message.role), ["user", "assistant", "user", "assistant"]);
+  assert.equal(messages[0].content, "Why is this test failing?");
+  assert.equal(messages[1].content, "The fixture is stale.");
+});
+
+test("the structural importer ignores arrays that are not conversations", () => {
+  assert.throws(
+    () => importConversations(JSON.stringify({
+      users: [{ id: 1, email: "a@example.com" }, { id: 2, email: "b@example.com" }],
+      settings: { theme: "dark", retries: 3 },
+    }), "generic"),
+    /No conversations found/,
+  );
+});
+
+test("a named vendor format is never handed to the structural importer", () => {
+  const claudeShaped = JSON.stringify([{
+    uuid: "9f0d5a2e-0000-4000-8000-000000000000",
+    name: "Precedence check",
+    chat_messages: [{ uuid: "m1", sender: "human", text: "This must import as claude." }],
+  }]);
+  assert.equal(detectFormat(claudeShaped), "claude");
+});

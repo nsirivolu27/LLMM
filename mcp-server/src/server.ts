@@ -10,6 +10,7 @@ import { importConversations } from "./import/index.js";
 import { analyzeConversation } from "./intel/analyze.js";
 import { detectConflicts, detectDuplicates } from "./intel/conflict.js";
 import { buildContextPacket } from "./intel/packet.js";
+import { mountExportRoutes } from "./export/wire.js";
 import { createLnkzMcpServer, LNKZ_VERSION } from "./mcp.js";
 import {
   appendMessagesSchema,
@@ -165,6 +166,8 @@ app.post("/api/conversations/:id/messages", requireApiKey, apiLimiter, async (re
     badRequest(response, error);
   }
 });
+
+mountExportRoutes(app, store, requireApiKey);
 
 // ----------------------------------------------------------------------- handoffs
 

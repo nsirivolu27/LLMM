@@ -1,4 +1,4 @@
-import { buildConversation, normalizeRole, titleFromMessages } from "./shared.js";
+import { buildConversation, dropPreamble, normalizeRole, titleFromMessages } from "./shared.js";
 import type { ConversationInput, MessageInput } from "../types.js";
 
 const HEADING = /^(#{1,6})\s+(.+?)\s*$/;
@@ -8,6 +8,21 @@ const PLAIN_SPEAKER = /^([A-Za-z][\w .'-]{0,40})\s*[:：]\s+(.*)$/;
 const KNOWN_SPEAKERS = new Set([
   "user", "human", "me", "you", "assistant", "ai", "bot", "chatgpt", "claude",
   "gemini", "copilot", "grok", "system", "tool",
+]);
+
+/**
+ * Words that introduce a fact about the document rather than a person speaking.
+ * "Source: chatgpt" and "Tags: launch" match the same `Word: value` shape a
+ * transcript uses for "Alice: hello", so without this list a document's own
+ * header block reads back as a handful of messages from nobody. LNKZ writes most
+ * of these itself when it exports Markdown, which is exactly how the problem was
+ * found: a transcript exported and re-imported came back longer than it went out.
+ */
+const METADATA_KEYS = new Set([
+  "source", "updated", "created", "date", "time", "participants", "tags", "summary",
+  "title", "author", "authors", "model", "provider", "app", "device", "exported",
+  "continued from", "id", "version", "status", "format", "note", "notes", "url",
+  "link", "conversation", "workspace",
 ]);
 
 /**
@@ -21,8 +36,8 @@ export function importMarkdown(payload: string): { conversations: ConversationIn
   let title = "";
   let inFence = false;
 
-  const messages: MessageInput[] = [];
-  let current: { role: string; author?: string; buffer: string[] } | null = null;
+  const messages: (MessageInput & { attributed: boolean })[] = [];
+  let current: { role: string; author?: string; buffer: string[]; attributed: boolean } | null = null;
 
   const flush = () => {
     if (!current) return;
@@ -32,6 +47,7 @@ export function importMarkdown(payload: string): { conversations: ConversationIn
         role: normalizeRole(current.role),
         content,
         author: current.author && !KNOWN_SPEAKERS.has(current.author.toLowerCase()) ? current.author : undefined,
+        attributed: current.attributed,
       });
     }
     current = null;
@@ -48,13 +64,17 @@ export function importMarkdown(payload: string): { conversations: ConversationIn
           title = text;
           continue;
         }
-        if (isSpeaker(text)) {
+        // Level one and two headings are document structure: "Transcript",
+        // "Decisions", "Open questions". Only an explicit speaker name is read as
+        // a turn at that level, because a section title and a person's name look
+        // identical to a pattern match and guessing wrong invents messages.
+        const structural = heading[1].length <= 2;
+        if (structural ? KNOWN_SPEAKERS.has(text.trim().toLowerCase()) : isSpeaker(text)) {
           flush();
-          current = { role: text, author: text, buffer: [] };
+          current = { role: text, author: text, buffer: [], attributed: true };
           continue;
         }
-        if (heading[1].length <= 2) {
-          // A structural heading such as "Transcript" or "Summary".
+        if (structural) {
           flush();
           continue;
         }
@@ -63,24 +83,26 @@ export function importMarkdown(payload: string): { conversations: ConversationIn
       const bold = BOLD_SPEAKER.exec(line);
       if (bold && isSpeaker(bold[1])) {
         flush();
-        current = { role: bold[1], author: bold[1], buffer: bold[2] ? [bold[2]] : [] };
+        current = { role: bold[1], author: bold[1], buffer: bold[2] ? [bold[2]] : [], attributed: true };
         continue;
       }
 
       const plain = PLAIN_SPEAKER.exec(line);
       if (plain && isSpeaker(plain[1])) {
         flush();
-        current = { role: plain[1], author: plain[1], buffer: plain[2] ? [plain[2]] : [] };
+        current = { role: plain[1], author: plain[1], buffer: plain[2] ? [plain[2]] : [], attributed: true };
         continue;
       }
     }
 
     if (current) current.buffer.push(line);
-    else if (line.trim()) current = { role: "other", buffer: [line] };
+    else if (line.trim()) current = { role: "other", buffer: [line], attributed: false };
   }
   flush();
 
-  if (!messages.length) {
+  const turns = dropPreamble(messages);
+
+  if (!turns.length) {
     warnings.push("No speaker headings were found, so the document was kept as a single note.");
     return {
       conversations: asSingleNote(payload, title),
@@ -89,10 +111,10 @@ export function importMarkdown(payload: string): { conversations: ConversationIn
   }
 
   const conversation = buildConversation({
-    title: title || titleFromMessages(messages, "Pasted transcript"),
+    title: title || titleFromMessages(turns, "Pasted transcript"),
     provider: "markdown",
     app: "transcript",
-    messages,
+    messages: turns.map(({ attributed, ...message }) => message),
     tags: ["imported", "markdown"],
   });
   return { conversations: conversation ? [conversation] : [], warnings };
@@ -101,6 +123,7 @@ export function importMarkdown(payload: string): { conversations: ConversationIn
 function isSpeaker(value: string): boolean {
   const normalized = value.trim().toLowerCase().replace(/[:：]$/, "");
   if (KNOWN_SPEAKERS.has(normalized)) return true;
+  if (METADATA_KEYS.has(normalized)) return false;
   return normalized.length <= 24 && /^[a-z][a-z .'-]*$/.test(normalized) && normalized.split(" ").length <= 3;
 }
 

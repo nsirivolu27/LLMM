@@ -137,6 +137,16 @@ async function main() {
       && packet.body.packet.markdown.includes("LNKZ context packet"),
   );
 
+  const exported = await request(`/api/conversations/${conversation.id}/export?format=openai`);
+  check(
+    "a conversation exports back out as a chat-completions payload",
+    exported.status === 200 && Array.isArray(exported.body?.messages) && exported.body.messages.length === 2,
+    JSON.stringify(exported.body).slice(0, 160),
+  );
+
+  const badFormat = await request(`/api/conversations/${conversation.id}/export?format=nope`);
+  check("an unknown export format is refused", badFormat.status === 400, `got ${badFormat.status}`);
+
   const handoff = await request(`/api/conversations/${conversation.id}/handoffs`, {
     method: "POST",
     body: JSON.stringify({ ttlMinutes: 10, maxUses: 2, redact: true, audience: "smoke test" }),

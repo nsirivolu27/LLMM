@@ -26,7 +26,8 @@ the working directory. `.mcp.json` in this repository already does that.
 | Tool | Purpose |
 | --- | --- |
 | `save_conversation` | Store a normalized chat from any client or device |
-| `import_conversation` | Normalize a ChatGPT, Claude, Gemini, LNKZ, Markdown, or plain-text payload. Auto-detects the format; `dryRun` previews without writing |
+| `import_conversation` | Normalize a ChatGPT, Claude, Gemini, chat-completions, LNKZ, Markdown, or plain-text payload, or find the conversation structurally in an export LNKZ has never seen. Auto-detects; `dryRun` previews without writing |
+| `export_conversation` | Write a conversation back out in another client's format: `markdown`, `markdown-brief`, `openai`, `chatgpt`, `claude`, `lnkz`, `text`. Every format re-imports |
 | `get_conversation` | Full conversation, lineage, extracted claims, and Markdown transcript |
 | `list_conversations` | Newest first, filterable by provider, tag, or participant |
 | `search_conversations` | Ranked full-text search with snippets |
@@ -119,6 +120,7 @@ Supplying a saved UUID as `id` updates the conversation without changing its cre
 | `POST` | `/api/conversations/:id/messages` | Append turns |
 | `POST` | `/api/conversations/search` | Ranked search |
 | `POST` | `/api/conversations/import` | Import, with `dryRun` |
+| `GET` | `/api/conversations/:id/export` | Export, with `?format=` |
 | `POST` | `/api/conversations/:id/handoffs` | Create a handoff |
 | `GET` | `/api/handoffs` | List handoffs |
 | `DELETE` | `/api/handoffs/:id` | Revoke |
@@ -150,6 +152,26 @@ curl -H "Accept: text/markdown" http://localhost:3100/share/<token>
 The `shareUrl` a handoff returns contains a bearer token. Anyone holding it can read that
 conversation until it expires or is revoked, so treat it like a temporary password. The
 plaintext token is never stored by LNKZ.
+
+## Formats
+
+Import accepts these, and `auto` picks between them:
+
+| Format | What it is |
+| --- | --- |
+| `chatgpt` | The account export. A message tree, so LNKZ follows `current_node` to the root and leaves abandoned edit branches out |
+| `claude` | The account export. A flat list per conversation, reading either `text` or the typed content blocks |
+| `gemini` | The API request body, or a takeout-style record grouping `turns` |
+| `openai` | The chat-completions message array, which is also what most agent frameworks, traces and eval files store |
+| `lnkz` | A LNKZ packet, so a handoff becomes a conversation somewhere else |
+| `markdown` | A transcript with speaker headings. Fenced code survives, and a document's own header block is not read as messages |
+| `text` | A copied chat, split on speaker labels when they exist and kept whole when they do not |
+| `generic` | An export LNKZ has never seen. Instead of guessing the vendor, it finds the message array or the prompt and response pairs structurally, and says in a warning that it did |
+
+Export writes `markdown`, `markdown-brief` (decisions and open questions above the
+transcript), `openai`, `chatgpt`, `claude`, `lnkz`, and `text`. Every one of them re-imports:
+there are round-trip tests asserting a conversation exported and read back is the same
+conversation.
 
 ## Connector configuration
 

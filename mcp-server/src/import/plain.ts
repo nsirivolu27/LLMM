@@ -1,4 +1,4 @@
-import { buildConversation, normalizeRole, titleFromMessages } from "./shared.js";
+import { buildConversation, dropPreamble, normalizeRole, titleFromMessages } from "./shared.js";
 import type { ConversationInput, MessageInput } from "../types.js";
 
 const SPEAKER_LINE = /^\s*(user|human|me|you|assistant|ai|bot|chatgpt|claude|gemini|copilot|grok|system|tool)\s*[:：]\s*(.*)$/i;
@@ -10,14 +10,14 @@ const SPEAKER_LINE = /^\s*(user|human|me|you|assistant|ai|bot|chatgpt|claude|gem
  */
 export function importPlainText(payload: string): { conversations: ConversationInput[]; warnings: string[] } {
   const lines = payload.replace(/\r\n/g, "\n").split("\n");
-  const messages: MessageInput[] = [];
-  let current: { role: string; buffer: string[] } | null = null;
+  const messages: (MessageInput & { attributed: boolean })[] = [];
+  let current: { role: string; buffer: string[]; attributed: boolean } | null = null;
   const warnings: string[] = [];
 
   const flush = () => {
     if (!current) return;
     const content = current.buffer.join("\n").trim();
-    if (content) messages.push({ role: normalizeRole(current.role), content });
+    if (content) messages.push({ role: normalizeRole(current.role), content, attributed: current.attributed });
     current = null;
   };
 
@@ -25,23 +25,26 @@ export function importPlainText(payload: string): { conversations: ConversationI
     const speaker = SPEAKER_LINE.exec(line);
     if (speaker) {
       flush();
-      current = { role: speaker[1], buffer: speaker[2] ? [speaker[2]] : [] };
+      current = { role: speaker[1], buffer: speaker[2] ? [speaker[2]] : [], attributed: true };
       continue;
     }
     if (current) current.buffer.push(line);
-    else if (line.trim()) current = { role: "user", buffer: [line] };
+    else if (line.trim()) current = { role: "user", buffer: [line], attributed: false };
   }
   flush();
 
-  if (messages.length < 2) {
+  const turns = dropPreamble(messages);
+
+  if (turns.length < 2) {
     warnings.push("No speaker labels were found, so the text was stored as one message.");
   }
 
+  const stripped = turns.map(({ attributed, ...message }) => message);
   const conversation = buildConversation({
-    title: titleFromMessages(messages, "Pasted conversation"),
+    title: titleFromMessages(stripped, "Pasted conversation"),
     provider: "text",
     app: "paste",
-    messages: messages.length ? messages : [{ role: "user", content: payload.trim() }],
+    messages: stripped.length ? stripped : [{ role: "user", content: payload.trim() }],
     tags: ["imported", "text"],
   });
 
