@@ -46,10 +46,12 @@ app.use(validateOrigin);
 const shareLimiter = rateLimit({ windowMs: 60_000, max: Number(process.env.LNKZ_SHARE_RATE_LIMIT ?? 60) });
 const apiLimiter = rateLimit({ windowMs: 60_000, max: Number(process.env.LNKZ_API_RATE_LIMIT ?? 600) });
 const sharedShareLimiter = sharedRateLimitMiddleware(sharedRateLimiter, {
+  bucket: "share",
   windowMs: 60_000,
   max: Number(process.env.LNKZ_SHARE_RATE_LIMIT ?? 60),
 });
 const sharedApiLimiter = sharedRateLimitMiddleware(sharedRateLimiter, {
+  bucket: "api",
   windowMs: 60_000,
   max: Number(process.env.LNKZ_API_RATE_LIMIT ?? 600),
 });
@@ -365,7 +367,7 @@ function splitList(value: string | undefined): string[] {
 
 function sharedRateLimitMiddleware(
   limiter: PostgresRateLimiter | undefined,
-  options: { windowMs: number; max: number },
+  options: { bucket: string; windowMs: number; max: number },
 ): express.RequestHandler {
   return async (request, response, next) => {
     if (!limiter) {
@@ -373,7 +375,7 @@ function sharedRateLimitMiddleware(
       return;
     }
     try {
-      const result = await limiter.allow(requestClientKey(request), options);
+      const result = await limiter.allow(`${options.bucket}:${requestClientKey(request)}`, options);
       if (result.allowed) {
         next();
         return;
