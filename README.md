@@ -1,8 +1,10 @@
 <div align="center">
 
-# LNKZ
+# LLMM
 
-**Your best conversations are trapped in whichever app you had them in. LNKZ gets them out.**
+**Large Language Model Mover**
+
+**Your best conversations are trapped in whichever app you had them in. LLMM gets them out.**
 
 Move a chat from ChatGPT to Claude, from your laptop to your phone, from you to a teammate.
 Send the next model the decisions instead of the transcript. Share a thread with a link that
@@ -10,11 +12,17 @@ expires, scrubs your keys on the way out, and can be revoked after you send it.
 
 [Quick start](#quick-start) · [Live demo](#the-sixty-second-demo) · [Docs](#documentation) · [Self-host](DEPLOY.md)
 
-![ci](https://github.com/nsirivolu27/LNKZ/actions/workflows/ci.yml/badge.svg)
+![ci](https://github.com/nsirivolu27/LLMM/actions/workflows/ci.yml/badge.svg)
 
 </div>
 
 ---
+
+## LLMM — Large Language Model Mover
+
+LLMM moves useful working context between large language models, AI clients, devices, and people. It is not another chat client and it is not only a transcript archive: it is the portable context layer that lets a thread continue somewhere else without starting over.
+
+The product name is LLMM. Existing LNKZ-prefixed environment variables, MCP tool names, and lnkz:// resource URIs remain compatibility contracts while the implementation transitions.
 
 ## The problem
 
@@ -28,16 +36,16 @@ again from memory, badly.
 
 The conversation was the work. It should not be stuck in the client that happened to host it.
 
-## What LNKZ does
+## What LLMM does
 
 **Brings a chat in from anywhere.** Drop in a ChatGPT export, a Claude export, a Gemini
 payload, a chat-completions message array, a Markdown transcript, or just text you copied out
-of a window. For an export LNKZ has never seen, it finds the conversation structurally rather
-than guessing the vendor, and tells you it did. LNKZ figures out the format and normalizes it. ChatGPT exports are handled properly: because editing a message
-branches the conversation, the export is a tree, and LNKZ reconstructs the thread you actually
+of a window. For an export LLMM has never seen, it finds the conversation structurally rather
+than guessing the vendor, and tells you it did. LLMM figures out the format and normalizes it. ChatGPT exports are handled properly: because editing a message
+branches the conversation, the export is a tree, and LLMM reconstructs the thread you actually
 saw instead of interleaving drafts you abandoned.
 
-**Sends the gist, not the transcript.** Ask for a context packet and LNKZ returns what was
+**Sends the gist, not the transcript.** Ask for a context packet and LLMM returns what was
 decided, what is still open, what happens next, and a recent excerpt, trimmed to whatever
 token budget you name. Fifteen hundred tokens instead of forty thousand, and the next model
 starts where you left off rather than reading its way there.
@@ -59,7 +67,7 @@ and there are round-trip tests that prove it.
 
 **Shows you what the corpus knows.** Search answers which chat mentioned something. It cannot
 answer what a body of conversations has settled, which decisions everything else leans on, or
-which chats stand alone. That is a question about structure, so LNKZ builds a graph: nodes for
+which chats stand alone. That is a question about structure, so LLMM builds a graph: nodes for
 conversations, decisions, open questions and shared topics, edges for lineage, shared subject
 matter, near duplicates and contradictions. Every edge carries the reason it exists.
 
@@ -74,7 +82,7 @@ Jira, Figma, documentation feeds, and any other MCP server you connect.
       +------------+-----+------+--------------+-----------------+
                          |
                     ┌────┴─────┐
-                    │   LNKZ   │   MCP over HTTP and stdio · REST · web console
+                    │   LLMM   │   MCP over HTTP and stdio · REST · web console
                     └────┬─────┘
                          |
         +----------------+----------------+
@@ -85,7 +93,7 @@ Jira, Figma, documentation feeds, and any other MCP server you connect.
                                      MCP servers
 ```
 
-LNKZ speaks MCP, so it plugs into Claude, Cursor, Codex, and anything else that speaks the
+LLMM speaks MCP, so it plugs into Claude, Cursor, Codex, and anything else that speaks the
 protocol. It also has a plain REST API and a web console, because not everything that needs
 your context is an AI client.
 
@@ -108,7 +116,7 @@ Point an MCP client at it:
 ```json
 {
   "mcpServers": {
-    "lnkz": {
+    "llmm": {
       "url": "http://localhost:3100/mcp",
       "headers": { "Authorization": "Bearer YOUR_LNKZ_API_KEY" }
     }
@@ -121,16 +129,16 @@ Point an MCP client at it:
 Three calls that are the whole product.
 
 ```bash
-LNKZ=http://localhost:3100
+LLMM=http://localhost:3100
 KEY=$(grep LNKZ_API_KEY mcp-server/.env | cut -d= -f2)
 
 # 1. Bring a conversation in. This one is a raw paste; an export works the same way.
-curl -s -X POST $LNKZ/api/conversations/import \
+curl -s -X POST $LLMM/api/conversations/import \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
   -d '{"payload":"User: postgres or sqlite for the relay?\nAssistant: We decided to use SQLite, it removes the deployment dependency. I will write the migration. Still unclear whether we need WAL checkpoints."}'
 
 # 2. Ask for what the next model actually needs.
-curl -s -X POST $LNKZ/api/context/packet \
+curl -s -X POST $LLMM/api/context/packet \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
   -d '{"query":"sqlite","budgetTokens":1500}'
 #    -> decision: use SQLite, it removes the deployment dependency
@@ -138,7 +146,7 @@ curl -s -X POST $LNKZ/api/context/packet \
 #    -> action item: write the migration
 
 # 3. Hand it to someone, for an hour, three uses, secrets stripped.
-curl -s -X POST $LNKZ/api/conversations/<id>/handoffs \
+curl -s -X POST $LLMM/api/conversations/<id>/handoffs \
   -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
   -d '{"ttlMinutes":60,"maxUses":3,"redact":true,"audience":"design review"}'
 ```
@@ -150,7 +158,7 @@ rule based, which means it costs nothing, works offline, and gives the same answ
 
 | | |
 | --- | --- |
-| **Import** | ChatGPT, Claude, Gemini, chat-completions, LNKZ packets, Markdown, plain text, plus a structural reader for unknown exports. Auto-detected. Preview before writing. |
+| **Import** | ChatGPT, Claude, Gemini, chat-completions, LLMM packets, Markdown, plain text, plus a structural reader for unknown exports. Auto-detected. Preview before writing. |
 | **Understand** | Decisions, open questions, action items, cited facts, topics. Each traced to the message it came from. |
 | **Package** | Token-budgeted context packets for the next model. |
 | **Export** | Back out as Markdown, a brief, a chat-completions payload, or a ChatGPT- or Claude-shaped export. All re-importable. |
@@ -177,7 +185,7 @@ reason rather than failing, and one source being down never hides results from t
 
 ## Your data stays yours
 
-LNKZ is self-hosted by design. There is no LNKZ cloud, no account to create, and nothing
+LLMM is self-hosted by design. There is no LLMM cloud, no account to create, and nothing
 phones home.
 
 - Conversations live in a SQLite file you control
