@@ -1,15 +1,17 @@
-# LNKZ MCP and API reference
+# LLMM MCP and API reference
+
+LLMM preserves the existing LNKZ MCP contract while presenting the product as the Large Language Model Mover. Clients can continue using the established tool names, resource URIs, and LNKZ_* configuration without migration work.
 
 ## Connecting
 
-LNKZ exposes stateless Streamable HTTP at `POST /mcp`. When `LNKZ_API_KEY` is set, clients must
+LLMM exposes stateless Streamable HTTP at `POST /mcp`. When `LNKZ_API_KEY` is set, clients must
 send `Authorization: Bearer <LNKZ_API_KEY>`.
 
 ```json
 {
   "mcpServers": {
-    "lnkz": {
-      "url": "https://lnkz.example.com/mcp",
+    "llmm": {
+      "url": "https://llmm.example.com/mcp",
       "headers": { "Authorization": "Bearer ${LNKZ_API_KEY}" }
     }
   }
@@ -26,8 +28,8 @@ the working directory. `.mcp.json` in this repository already does that.
 | Tool | Purpose |
 | --- | --- |
 | `save_conversation` | Store a normalized chat from any client or device |
-| `import_conversation` | Normalize a ChatGPT, Claude, Gemini, chat-completions, LNKZ, Markdown, or plain-text payload, or find the conversation structurally in an export LNKZ has never seen. Auto-detects; `dryRun` previews without writing |
-| `export_conversation` | Write a conversation back out in another client's format: `markdown`, `markdown-brief`, `openai`, `chatgpt`, `claude`, `lnkz`, `latex`, `text` |
+| `import_conversation` | Normalize a ChatGPT, Claude, Gemini, chat-completions, LLMM, Markdown, or plain-text payload, or find the conversation structurally in an export LLMM has never seen. Auto-detects; `dryRun` previews without writing |
+| `export_conversation` | Write a conversation back out in another client's format: `markdown`, `markdown-brief`, `openai`, `chatgpt`, `claude`, `llmm`, `latex`, `text` |
 | `get_conversation` | Full conversation, lineage, extracted claims, and Markdown transcript |
 | `list_conversations` | Newest first, filterable by provider, tag, or participant |
 | `search_conversations` | Ranked full-text search with snippets |
@@ -56,7 +58,7 @@ the working directory. `.mcp.json` in this repository already does that.
 
 ### Publishing
 
-Sending context onward is split in two on purpose. LNKZ prepares the call and shows it; making
+Sending context onward is split in two on purpose. LLMM prepares the call and shows it; making
 the call is a separate, deliberate act. A context relay that can silently write into your team's
 Jira is a different and more dangerous product than one that cannot.
 
@@ -79,7 +81,7 @@ is a request sent somewhere unintended.
 
 | Tool | Purpose |
 | --- | --- |
-| `search_context` | LNKZ plus every configured connector in one call, with per-source errors |
+| `search_context` | LLMM plus every configured connector in one call, with per-source errors |
 | `list_connectors` | Which sources are configured, and why the others are not |
 | `workspace_stats` | Conversation, message, provider, and handoff counts |
 | `audit_log` | Recent saves, imports, redemptions, rejections, and revocations |
@@ -105,7 +107,7 @@ is a request sent somewhere unintended.
 
 ## Conversation format
 
-Every conversation is stored as `lnkz.conversation.v1`. `source.provider` is an open string so a
+Every conversation is stored as `llmm.conversation.v1`. `source.provider` is an open string so a
 client can identify ChatGPT, Claude, Gemini, a local model, or something that does not exist yet
 without a protocol change.
 
@@ -177,7 +179,7 @@ curl -H "Accept: text/markdown" http://localhost:3100/share/<token>
 
 The `shareUrl` a handoff returns contains a bearer token. Anyone holding it can read that
 conversation until it expires or is revoked, so treat it like a temporary password. The
-plaintext token is never stored by LNKZ.
+plaintext token is never stored by LLMM.
 
 ## Formats
 
@@ -185,17 +187,17 @@ Import accepts these, and `auto` picks between them:
 
 | Format | What it is |
 | --- | --- |
-| `chatgpt` | The account export. A message tree, so LNKZ follows `current_node` to the root and leaves abandoned edit branches out |
+| `chatgpt` | The account export. A message tree, so LLMM follows `current_node` to the root and leaves abandoned edit branches out |
 | `claude` | The account export. A flat list per conversation, reading either `text` or the typed content blocks |
 | `gemini` | The API request body, or a takeout-style record grouping `turns` |
 | `openai` | The chat-completions message array, which is also what most agent frameworks, traces and eval files store |
-| `lnkz` | A LNKZ packet, so a handoff becomes a conversation somewhere else |
+| `llmm` | A LLMM packet, so a handoff becomes a conversation somewhere else |
 | `markdown` | A transcript with speaker headings. Fenced code survives, and a document's own header block is not read as messages |
 | `text` | A copied chat, split on speaker labels when they exist and kept whole when they do not |
-| `generic` | An export LNKZ has never seen. Instead of guessing the vendor, it finds the message array or the prompt and response pairs structurally, and says in a warning that it did |
+| `generic` | An export LLMM has never seen. Instead of guessing the vendor, it finds the message array or the prompt and response pairs structurally, and says in a warning that it did |
 
 Export writes `markdown`, `markdown-brief` (decisions and open questions above the
-transcript), `openai`, `chatgpt`, `claude`, `lnkz`, `latex`, and `text`. Every one except
+transcript), `openai`, `chatgpt`, `claude`, `llmm`, `latex`, and `text`. Every one except
 LaTeX re-imports, and there are round-trip tests asserting a conversation exported and read
 back is the same conversation.
 
