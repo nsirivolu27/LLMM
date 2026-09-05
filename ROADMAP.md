@@ -4,11 +4,11 @@
 
 **Portability**
 
-- Provider-neutral `lnkz.conversation.v1` schema and Markdown transcripts
+- Provider-neutral `llmm.conversation.v1` schema and Markdown transcripts
 - Importers for ChatGPT tree exports, Claude exports, Gemini payloads, chat-completions
-  message arrays, LNKZ packets, Markdown transcripts, and unlabeled pasted text, with
+  message arrays, LLMM packets, Markdown transcripts, and unlabeled pasted text, with
   detection and a dry run
-- A structural importer that locates the conversation in an export LNKZ has never seen,
+- A structural importer that locates the conversation in an export LLMM has never seen,
   instead of shipping a guessed parser per vendor
 - Export in eight formats including a compilable LaTeX document, every other one re-importable,
   with round-trip tests
@@ -36,10 +36,17 @@
 - 20 MCP tools, 4 resources, 4 prompts over Streamable HTTP and stdio
 - REST API, web console, single-container deploy, CI, and an end-to-end smoke test
 
+## Current MVP foundation
+
+- LLMM product identity and repository framing
+- Portable conversation state across model clients, devices, and teammates
+- Stateless MCP transport backed by shared REST and storage contracts
+- Workspace-aware Postgres path with actor identity and scoped MCP authorization
+
 ## Next: production foundation
 
-- Postgres repository implementing the existing `ConversationStore` interface
-- Accounts, workspaces, roles, and scoped API tokens replacing the shared key
+- Managed identity/OIDC replacing static API principals
+- Workspace membership, roles, and scoped API tokens as the LLMM account boundary
 - Envelope encryption, retention rules, export, deletion, and per-workspace audit
 - Shared rate-limit store so more than one instance can run
 - Single-use-by-default handoffs, audience verification, and per-workspace handoff policy
