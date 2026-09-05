@@ -16,7 +16,7 @@
               |                     |                       |
       import normalizers    ConversationStore        federated search
        (chatgpt, claude,     (SQLite + FTS5 or        (slack, jira, figma,
-       gemini, lnkz,         handoffs, audit)         docs, MCP-to-MCP)
+       gemini, llmm,         handoffs, audit)         docs, MCP-to-MCP)
        markdown, text)             |
               |                    |
               +---> intel layer <--+
@@ -37,7 +37,7 @@ never drift apart.
 ## Storage
 
 SQLite through Node's built-in `node:sqlite` remains the default when `DATABASE_URL` is absent.
-That choice is deliberate: LNKZ is meant to be run by one person on whatever machine they have,
+That choice is deliberate: LLMM is meant to be run by one person on whatever machine they have,
 and a native module that needs a compiler is a real barrier for that person. A deployment that
 sets `DATABASE_URL` uses `PostgresConversationStore` instead, without changing the
 `ConversationStore` contract or the MCP tool contract.
@@ -51,7 +51,7 @@ Writes go through one transaction per conversation, so a partially written threa
 possible. SQLite migrations are versioned with `PRAGMA user_version`; Postgres migrations are
 an explicit release step (`npm run db:migrate`) and application startup fails closed when
 `schema_migrations` is behind. The SQLite-to-Postgres importer supports a dry run before it
-writes. A pre-SQLite `.data/lnkz.json` is imported once on first boot rather than being silently
+writes. A pre-SQLite `.data/llmm.json` is imported once on first boot rather than being silently
 orphaned.
 
 Postgres keeps `workspace_id` directly on conversations, messages, handoffs, audit events, and
@@ -71,7 +71,7 @@ exact database scores.
 Each provider gets its own normalizer and a `looksLike` predicate, so detection is a property
 of the format rather than a guess made at the call site. ChatGPT is the interesting one: its
 export is a message *tree*, because edits branch the conversation, so importing the mapping
-naively interleaves abandoned drafts with the real thread. LNKZ walks back from `current_node`
+naively interleaves abandoned drafts with the real thread. LLMM walks back from `current_node`
 to the root, which reconstructs exactly what the user saw.
 
 Anything unrecognized is stored whole rather than split on a guess. Losing structure is
@@ -112,7 +112,7 @@ matches, and removes duplicates. One unavailable service can never hide another'
 an unconfigured source stays visible as disabled with the reason.
 
 The Fantasy Copilot adapter is an MCP client talking to another MCP server, which is the
-general shape: LNKZ federates other MCP servers rather than reimplementing them.
+general shape: LLMM federates other MCP servers rather than reimplementing them.
 
 ## Hosting
 
