@@ -1,6 +1,6 @@
-# Deploying LNKZ
+# Deploying LLMM
 
-LNKZ runs as one container: a Node process serving the site, the REST API, and the MCP
+LLMM runs as one container: a Node process serving the site, the REST API, and the MCP
 endpoint. It needs a persistent disk, because the SQLite store lives on it, and TLS, because
 a handoff token travels in a URL.
 
@@ -34,17 +34,17 @@ fly auth login
 ```
 
 Pick a name now. It appears in three places that must agree: `fly.toml`, the secrets below,
-and the health check header. Anywhere this file says `lnkz`, substitute yours.
+and the health check header. Anywhere this file says `llmm`, substitute yours.
 
 ## 1. Create the app without deploying
 
 ```powershell
-fly launch --no-deploy --name lnkz --region iad
+fly launch --no-deploy --name llmm --region iad
 ```
 
 Answer no if it offers to tweak settings; `fly.toml` in this repo is already correct. If you
-chose a name other than `lnkz`, open `fly.toml` and update both `app = "lnkz"` and the
-`Host = "lnkz.fly.dev"` line under the health check.
+chose a name other than `llmm`, open `fly.toml` and update both `app = "llmm"` and the
+`Host = "llmm.fly.dev"` line under the health check.
 
 ## 2. Create the volume
 
@@ -60,9 +60,9 @@ and every deploy silently wipes your conversations.
 ```powershell
 fly secrets set `
   LNKZ_API_KEY=(python -c "import secrets;print(secrets.token_urlsafe(32))") `
-  LNKZ_PUBLIC_BASE_URL=https://lnkz.fly.dev `
-  ALLOWED_HOSTS=lnkz.fly.dev `
-  ALLOWED_ORIGINS=https://lnkz.fly.dev
+  LNKZ_PUBLIC_BASE_URL=https://llmm.fly.dev `
+  ALLOWED_HOSTS=llmm.fly.dev `
+  ALLOWED_ORIGINS=https://llmm.fly.dev
 ```
 
 What each one does, because getting these wrong is the usual first-deploy failure:
@@ -94,7 +94,7 @@ server over both REST and MCP:
 
 ```powershell
 $env:LNKZ_API_KEY = (fly secrets list | Select-String LNKZ_API_KEY)  # or paste the value you set
-node scripts/smoke.mjs https://lnkz.fly.dev
+node scripts/smoke.mjs https://llmm.fly.dev
 ```
 
 Fourteen checks should pass, covering auth, import, search, packet building, handoff
@@ -103,8 +103,8 @@ redemption, single-use exhaustion, MCP initialize, a live tool call, and the aud
 A quick manual pass:
 
 ```powershell
-curl https://lnkz.fly.dev/health
-start https://lnkz.fly.dev/console.html
+curl https://llmm.fly.dev/health
+start https://llmm.fly.dev/console.html
 ```
 
 ## 6. Point a client at it
@@ -112,8 +112,8 @@ start https://lnkz.fly.dev/console.html
 ```json
 {
   "mcpServers": {
-    "lnkz": {
-      "url": "https://lnkz.fly.dev/mcp",
+    "llmm": {
+      "url": "https://llmm.fly.dev/mcp",
       "headers": { "Authorization": "Bearer YOUR_LNKZ_API_KEY" }
     }
   }
@@ -127,7 +127,7 @@ demo.
 ## If something goes wrong
 
 **Every request returns 403.** `ALLOWED_HOSTS` does not match the hostname you are using.
-It takes a bare hostname; `https://lnkz.fly.dev` is wrong, `lnkz.fly.dev` is right.
+It takes a bare hostname; `https://llmm.fly.dev` is wrong, `llmm.fly.dev` is right.
 
 **The machine never reports healthy.** The health check header in `fly.toml` does not match
 the app name. Both must be the same domain.
@@ -162,10 +162,10 @@ service's environment tab. The disk is declared in the blueprint and mounts at `
 The whole store is one file. Back it up with:
 
 ```powershell
-fly ssh console -C "cat /app/data/lnkz.db" > lnkz-backup.db
+fly ssh console -C "cat /app/data/llmm.db" > llmm-backup.db
 ```
 
-Do this before any schema change. When LNKZ moves to Postgres, this section is replaced by
+Do this before any schema change. When LLMM moves to Postgres, this section is replaced by
 ordinary database backups.
 
 ## AWS reference deployment: App Runner + private RDS
@@ -199,8 +199,8 @@ Record the `RepositoryUri`, `MigrationSecretArn`, `ApplicationDatabaseSecretArn`
 `DatabaseEndpoint` outputs. Push the image after building it:
 
 ```bash
-docker build -f mcp-server/Dockerfile -t lnkz:release .
-docker tag lnkz:release "$REPOSITORY_URI:$IMAGE_TAG"
+docker build -f mcp-server/Dockerfile -t llmm:release .
+docker tag llmm:release "$REPOSITORY_URI:$IMAGE_TAG"
 docker push "$REPOSITORY_URI:$IMAGE_TAG"
 ```
 
@@ -209,7 +209,7 @@ through AWS Secrets Manager, create the `lnkz_app` login with the application se
 and run the migration as the migration role:
 
 ```bash
-export DATABASE_URL='postgresql://lnkz_migrator:...@PRIVATE_RDS_ENDPOINT:5432/lnkz'
+export DATABASE_URL='postgresql://lnkz_migrator:...@PRIVATE_RDS_ENDPOINT:5432/llmm'
 export LNKZ_DATABASE_APP_ROLE=lnkz_app
 npm --prefix mcp-server run db:migrate
 ```
