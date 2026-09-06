@@ -24,6 +24,16 @@ LLMM moves useful working context between large language models, AI clients, dev
 
 The product name is LLMM. Existing LNKZ-prefixed environment variables, MCP tool names, and lnkz:// resource URIs remain compatibility contracts while the implementation transitions.
 
+## Repository boundary
+
+This repository is the complete LLMM product: its web console, product-facing UI, API integration,
+deployment assets, and the embedded relay service used by the app.
+
+The reusable relay/MCP workflow is maintained separately in
+[`nsirivolu27/LNKZ`](https://github.com/nsirivolu27/LNKZ). LNKZ has no LLMM console or
+LLMM-specific branding and can be deployed on its own. Changes to the portable relay protocol
+should be made in LNKZ as a self-contained workflow; product UI work stays here.
+
 ## The problem
 
 You spend an hour with a model working something out. It lands on an answer, names the
