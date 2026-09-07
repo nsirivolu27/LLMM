@@ -43,7 +43,7 @@ $config["mcpServers"]["graphify"] = @{
 
 $config["mcpServers"]["lnkz"] = @{
   command = "node"
-  args    = @((Join-Path $repo "mcp-server\dist\stdio.js"))
+  args    = @((Join-Path $repo "lnkz-mcp\dist\stdio.js"))
   env     = @{ LNKZ_DB_FILE = (Join-Path $repo ".data\lnkz.db") }
 }
 
