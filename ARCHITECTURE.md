@@ -3,7 +3,7 @@
 ```text
     LLM client            teammate / other device          ordinary app
         |                          |                            |
-   MCP (HTTP or stdio)      GET /share/:token               REST /api/*
+   lnkz-mcp (stdio)         GET /share/:token               REST /api/*
         |                          |                            |
         +------------- authentication boundary ------------------+
                                    |
@@ -26,13 +26,13 @@
 
 ## The boundary that matters
 
-`ConversationStore` (`src/store/index.ts`) is the only storage contract in the system. MCP over
-HTTP, MCP over stdio, the REST API, and the web console all call it; none of them knows what
-is underneath. Replacing SQLite with Postgres is one new class, not a rewrite.
+`ConversationStore` (`src/store/index.ts`) is the only storage contract in the relay. The REST
+API and web console call it; the standalone `lnkz-mcp` adapter knows only the REST wire contract
+and none of the storage details. Replacing SQLite with Postgres is one new class, not a rewrite.
 
-Everything else is arranged so that no transport owns a capability. A tool handler and a REST
-route for the same operation call the same function, which is why the MCP surface and the API
-never drift apart.
+Everything else is arranged so that no relay route owns a product capability. The adapter maps
+the stable MCP surface to the REST routes, which keeps the two repositories independently
+deployable.
 
 ## Storage
 
@@ -116,11 +116,10 @@ general shape: LLMM federates other MCP servers rather than reimplementing them.
 
 ## Hosting
 
-One Node process serves the built site, the REST API, and `POST /mcp` as stateless Streamable
-HTTP. A new `McpServer` and transport are constructed per request and torn down when the
-response closes, which is what makes the endpoint safe to run behind an autoscaler. In the AWS
-deployment, the cheap in-process limiter runs first and a Postgres bucket limiter runs second,
-so a burst is rejected locally while the limit remains shared across instances.
+One Node process serves the built site and REST API. The standalone `lnkz-mcp` process provides
+local stdio MCP and calls the relay over the authenticated REST boundary. In the AWS deployment,
+the cheap in-process limiter runs first and a Postgres bucket limiter runs second, so a burst is
+rejected locally while the limit remains shared across instances.
 
 The AWS reference deployment uses App Runner, a private RDS PostgreSQL instance, Secrets
 Manager, a customer-managed KMS key, an encrypted S3 bucket, and CloudWatch logs. App Runner
