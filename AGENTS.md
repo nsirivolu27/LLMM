@@ -8,10 +8,10 @@ safer to share. Features that only make the web app nicer are not the point.
 
 ## Boundaries to respect
 
-- `ConversationStore` in `mcp-server/src/store/index.ts` is the only storage contract. Handlers
+- `ConversationStore` in `relay/src/lnkz/store/index.ts` is the only storage contract. Handlers
   call it; they never reach past it into SQLite.
 - Expose capabilities through both MCP and REST. The web console is one client, not the client.
-- Import normalizers live in `mcp-server/src/import/` behind `looksLike` predicates. Detection
+- Import normalizers live in `relay/src/lnkz/import/` behind `looksLike` predicates. Detection
   is a property of the format, never a guess at the call site.
 - The `intel/` layer stays model-free and deterministic. If a feature needs an LLM, it belongs
   in a prompt the client runs, not in the server.

@@ -1,7 +1,8 @@
 # Deploying LLMM
 
-LLMM runs as one container: a Node process serving the site, the REST API, and the MCP
-endpoint. It needs a persistent disk, because the SQLite store lives on it, and TLS, because
+LLMM runs as one container: a Node process serving the site and the LNKZ REST relay. The
+separate `lnkz-mcp` adapter provides MCP transports. The relay needs a persistent disk, because
+the SQLite store lives on it, and TLS, because
 a handoff token travels in a URL.
 
 Fly is the default below. Render is equivalent and covered at the end.
@@ -14,7 +15,7 @@ cycle.
 
 ```powershell
 npm install
-npm ci --prefix mcp-server
+corepack pnpm install --dir relay
 npm run typecheck
 npm test
 npm run build
@@ -199,7 +200,7 @@ Record the `RepositoryUri`, `MigrationSecretArn`, `ApplicationDatabaseSecretArn`
 `DatabaseEndpoint` outputs. Push the image after building it:
 
 ```bash
-docker build -f mcp-server/Dockerfile -t llmm:release .
+docker build -f relay/Dockerfile -t llmm:release .
 docker tag llmm:release "$REPOSITORY_URI:$IMAGE_TAG"
 docker push "$REPOSITORY_URI:$IMAGE_TAG"
 ```
@@ -211,7 +212,7 @@ and run the migration as the migration role:
 ```bash
 export DATABASE_URL='postgresql://lnkz_migrator:...@PRIVATE_RDS_ENDPOINT:5432/llmm'
 export LNKZ_DATABASE_APP_ROLE=lnkz_app
-npm --prefix mcp-server run db:migrate
+corepack pnpm --dir relay run db:migrate
 ```
 
 `db:migrate` owns DDL and grants only table DML to `lnkz_app`; it does not grant ownership or

@@ -4,7 +4,7 @@ services:
     name: lnkz
     runtime: docker
     plan: starter
-    dockerfilePath: ./mcp-server/Dockerfile
+    dockerfilePath: ./relay/Dockerfile
     dockerContext: .
     healthCheckPath: /health
     disk:

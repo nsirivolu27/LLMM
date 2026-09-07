@@ -26,13 +26,13 @@ The product name is LLMM. Existing LNKZ-prefixed environment variables, MCP tool
 
 ## Repository boundary
 
-This repository is the complete LLMM product: its web console, product-facing UI, API integration,
-deployment assets, and the embedded relay service used by the app.
+This repository is the complete LLMM product: its web console, product-facing UI, deployment
+assets, and the LNKZ relay service in [`relay/`](relay). The relay remains a standalone,
+relay-only package inside this product repository and has no LLMM console code.
 
-The reusable relay/MCP workflow is maintained separately in
-[`nsirivolu27/LNKZ`](https://github.com/nsirivolu27/LNKZ). LNKZ has no LLMM console or
-LLMM-specific branding and can be deployed on its own. Changes to the portable relay protocol
-should be made in LNKZ as a self-contained workflow; product UI work stays here.
+The configurable MCP adapter is maintained separately in
+[`nsirivolu27/lnkz-mcp`](https://github.com/nsirivolu27/lnkz-mcp). It connects to this relay over
+the authenticated REST API and owns MCP HTTP/stdio transports.
 
 ## The problem
 
@@ -114,10 +114,10 @@ compile and no database to run.
 
 ```bash
 npm install
-npm ci --prefix mcp-server
-cp mcp-server/.env.example mcp-server/.env
+corepack pnpm install --dir relay
+cp relay/.env.example relay/.env
 
-npm run mcp:dev      # server on :3100
+npm start            # relay on :3100
 npm run dev          # site on :5173, console at /console.html
 ```
 
@@ -127,8 +127,12 @@ Point an MCP client at it:
 {
   "mcpServers": {
     "llmm": {
-      "url": "http://localhost:3100/mcp",
-      "headers": { "Authorization": "Bearer YOUR_LNKZ_API_KEY" }
+      "command": "node",
+      "args": ["../lnkz-mcp/dist/stdio.mjs"],
+      "env": {
+        "LNKZ_BASE_URL": "http://localhost:3100",
+        "LNKZ_API_KEY": "YOUR_LNKZ_API_KEY"
+      }
     }
   }
 }
@@ -140,7 +144,7 @@ Three calls that are the whole product.
 
 ```bash
 LLMM=http://localhost:3100
-KEY=$(grep LNKZ_API_KEY mcp-server/.env | cut -d= -f2)
+KEY=$(grep LNKZ_API_KEY relay/.env | cut -d= -f2)
 
 # 1. Bring a conversation in. This one is a raw paste; an export works the same way.
 curl -s -X POST $LLMM/api/conversations/import \

@@ -6,7 +6,7 @@ app = "lnkz"
 primary_region = "iad"
 
 [build]
-  dockerfile = "mcp-server/Dockerfile"
+  dockerfile = "relay/Dockerfile"
 
 [env]
   HOST = "0.0.0.0"

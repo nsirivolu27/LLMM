@@ -43,8 +43,8 @@ $config["mcpServers"]["graphify"] = @{
 
 $config["mcpServers"]["lnkz"] = @{
   command = "node"
-  args    = @((Join-Path $repo "mcp-server\dist\stdio.js"))
-  env     = @{ LNKZ_DB_FILE = (Join-Path $repo ".data\lnkz.db") }
+  args    = @((Join-Path $repo "..\lnkz-mcp\dist\stdio.mjs"))
+  env     = @{ LNKZ_BASE_URL = "http://127.0.0.1:3100" }
 }
 
 Copy-Item $configPath "$configPath.bak" -ErrorAction SilentlyContinue

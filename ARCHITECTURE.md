@@ -3,7 +3,7 @@
 ```text
     LLM client            teammate / other device          ordinary app
         |                          |                            |
-   MCP (HTTP or stdio)      GET /share/:token               REST /api/*
+   lnkz-mcp adapter         GET /share/:token               REST /api/*
         |                          |                            |
         +------------- authentication boundary ------------------+
                                    |
@@ -26,8 +26,8 @@
 
 ## The boundary that matters
 
-`ConversationStore` (`src/store/index.ts`) is the only storage contract in the system. MCP over
-HTTP, MCP over stdio, the REST API, and the web console all call it; none of them knows what
+`ConversationStore` (`relay/src/lnkz/store/index.ts`) is the only storage contract in the system. The
+relay REST API and the web console call it; the separate MCP adapter calls the API and none of them knows what
 is underneath. Replacing SQLite with Postgres is one new class, not a rewrite.
 
 Everything else is arranged so that no transport owns a capability. A tool handler and a REST
@@ -116,9 +116,8 @@ general shape: LLMM federates other MCP servers rather than reimplementing them.
 
 ## Hosting
 
-One Node process serves the built site, the REST API, and `POST /mcp` as stateless Streamable
-HTTP. A new `McpServer` and transport are constructed per request and torn down when the
-response closes, which is what makes the endpoint safe to run behind an autoscaler. In the AWS
+One Node process serves the built site and the REST API. The separate `lnkz-mcp` adapter owns
+stateless MCP HTTP/stdio transports and calls this API. In the AWS
 deployment, the cheap in-process limiter runs first and a Postgres bucket limiter runs second,
 so a burst is rejected locally while the limit remains shared across instances.
 
