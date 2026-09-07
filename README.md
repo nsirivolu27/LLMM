@@ -27,12 +27,13 @@ The product name is LLMM. Existing LNKZ-prefixed environment variables, MCP tool
 ## Repository boundary
 
 This repository is the complete LLMM product: its web console, product-facing UI, API integration,
-deployment assets, and the embedded relay service used by the app.
+deployment assets, and the embedded REST-only LNKZ relay service used by the app. The relay owns
+the database, imports, exports, context intelligence, connectors, handoffs, graph, and publish
+preparation.
 
-The reusable relay/MCP workflow is maintained separately in
-[`nsirivolu27/LNKZ`](https://github.com/nsirivolu27/LNKZ). LNKZ has no LLMM console or
-LLMM-specific branding and can be deployed on its own. Changes to the portable relay protocol
-should be made in LNKZ as a self-contained workflow; product UI work stays here.
+The standalone MCP adapter is maintained separately in
+[`nsirivolu27/lnkz-mcp`](https://github.com/nsirivolu27/lnkz-mcp). It owns no UI, database, stores,
+or connectors: it translates MCP calls into authenticated REST calls to this repository.
 
 ## The problem
 
@@ -92,7 +93,7 @@ Jira, Figma, documentation feeds, and any other MCP server you connect.
       +------------+-----+------+--------------+-----------------+
                          |
                     ┌────┴─────┐
-                    │   LLMM   │   MCP over HTTP and stdio · REST · web console
+                     │   LLMM   │   REST relay · web console
                     └────┬─────┘
                          |
         +----------------+----------------+
@@ -103,9 +104,9 @@ Jira, Figma, documentation feeds, and any other MCP server you connect.
                                      MCP servers
 ```
 
-LLMM speaks MCP, so it plugs into Claude, Cursor, Codex, and anything else that speaks the
-protocol. It also has a plain REST API and a web console, because not everything that needs
-your context is an AI client.
+The standalone `lnkz-mcp` adapter speaks MCP and plugs into Claude, Cursor, Codex, and anything
+else that speaks the protocol. LLMM also has a plain REST API and a web console, because not
+everything that needs your context is an AI client.
 
 ## Quick start
 
@@ -114,10 +115,10 @@ compile and no database to run.
 
 ```bash
 npm install
-npm ci --prefix mcp-server
-cp mcp-server/.env.example mcp-server/.env
+npm ci --prefix lnkz-relay
+cp lnkz-relay/.env.example lnkz-relay/.env
 
-npm run mcp:dev      # server on :3100
+npm run relay:dev    # REST relay on :3100
 npm run dev          # site on :5173, console at /console.html
 ```
 
@@ -127,8 +128,12 @@ Point an MCP client at it:
 {
   "mcpServers": {
     "llmm": {
-      "url": "http://localhost:3100/mcp",
-      "headers": { "Authorization": "Bearer YOUR_LNKZ_API_KEY" }
+      "command": "node",
+      "args": ["/path/to/lnkz-mcp/dist/stdio.js"],
+      "env": {
+        "LNKZ_BASE_URL": "http://localhost:3100",
+        "LNKZ_API_KEY": "YOUR_LNKZ_API_KEY"
+      }
     }
   }
 }
@@ -140,7 +145,7 @@ Three calls that are the whole product.
 
 ```bash
 LLMM=http://localhost:3100
-KEY=$(grep LNKZ_API_KEY mcp-server/.env | cut -d= -f2)
+KEY=$(grep LNKZ_API_KEY lnkz-relay/.env | cut -d= -f2)
 
 # 1. Bring a conversation in. This one is a raw paste; an export works the same way.
 curl -s -X POST $LLMM/api/conversations/import \
@@ -222,7 +227,7 @@ two mistakes that cause almost every first deploy to fail.
 | | |
 | --- | --- |
 | [DEPLOY.md](DEPLOY.md) | Deploying to Fly or Render, and what to check afterwards |
-| [MCP.md](MCP.md) | Every tool, resource, prompt, and REST endpoint |
+| [REST.md](REST.md) | The LLMM/LNKZ REST relay boundary |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How it is built and why those tradeoffs |
 | [ROADMAP.md](ROADMAP.md) | Shipped, next, and later |
 | [GRAPHIFY.md](GRAPHIFY.md) | The codebase knowledge graph used while developing |
