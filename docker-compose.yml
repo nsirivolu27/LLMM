@@ -2,7 +2,7 @@ services:
   lnkz:
     build:
       context: .
-      dockerfile: mcp-server/Dockerfile
+      dockerfile: lnkz-relay/Dockerfile
     environment:
       HOST: 0.0.0.0
       PORT: 3100
@@ -15,7 +15,7 @@ services:
       DATABASE_SSL: ${DATABASE_SSL:-false}
       LNKZ_POSTGRES_WORKSPACE_ID: ${LNKZ_POSTGRES_WORKSPACE_ID:-00000000-0000-4000-8000-000000000001}
     env_file:
-      - path: mcp-server/.env
+      - path: lnkz-relay/.env
         required: false
     ports:
       - "3100:3100"
