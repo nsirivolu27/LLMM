@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
- * End-to-end smoke test against a real LNKZ process.
+ * End-to-end smoke test against a real LNKZ REST relay.
  *
- * The unit tests exercise the store and the MCP server in memory. This one
- * boots the built server, then drives it the way a client actually would:
- * REST import, MCP over Streamable HTTP, an unauthenticated share redemption,
- * and a revocation. It is the check that catches wiring mistakes the unit
- * tests cannot see - middleware order, auth, transport framing, static serving.
+ * The unit tests exercise the store in memory. This one boots the built relay,
+ * then drives it the way a client actually would: REST import, an
+ * unauthenticated share redemption, and a revocation. It catches wiring
+ * mistakes the unit tests cannot see - middleware order, auth, and static serving.
  *
  * Usage:
- *   node scripts/smoke.mjs                 # boots mcp-server/dist/server.js
+ *   node scripts/smoke.mjs                 # boots lnkz-relay/dist/server.js
  *   node scripts/smoke.mjs http://host:port  # tests an already-running server
  */
 import { spawn } from "node:child_process";
@@ -54,35 +53,17 @@ async function request(path, init = {}) {
   return { status: response.status, body, headers: response.headers };
 }
 
-/** Minimal Streamable HTTP client: initialize, then call one tool. */
-async function mcp(method, params, id) {
-  const response = await fetch(`${baseUrl}/mcp`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-  });
-  const text = await response.text();
-  const payload = text.includes("data:")
-    ? JSON.parse(text.split("\n").filter((line) => line.startsWith("data:")).pop().slice(5).trim())
-    : JSON.parse(text);
-  return payload;
-}
-
 async function boot() {
   dataDir = await mkdtemp(join(tmpdir(), "lnkz-smoke-"));
   if (postgresUrl) {
     console.log("Running Postgres migrations for smoke test...");
     const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-    await execFileAsync(npm, ["--prefix", "mcp-server", "run", "db:migrate"], {
+    await execFileAsync(npm, ["--prefix", "lnkz-relay", "run", "db:migrate"], {
       env: { ...process.env, DATABASE_URL: postgresUrl },
     });
   }
   child = spawn(process.execPath, ["dist/server.js"], {
-    cwd: new URL("../mcp-server/", import.meta.url).pathname,
+    cwd: new URL("../lnkz-relay/", import.meta.url).pathname,
     env: {
       ...process.env,
       HOST: "127.0.0.1",
@@ -202,19 +183,6 @@ async function main() {
 
   const spent = await fetch(`${baseUrl}/share/${handoff.body.token}`);
   check("a spent handoff stops working", spent.status === 404, `got ${spent.status}`);
-
-  const initialize = await mcp("initialize", {
-    protocolVersion: "2025-06-18",
-    capabilities: {},
-    clientInfo: { name: "lnkz-smoke", version: "1.0.0" },
-  }, 1);
-  check("MCP initialize succeeds over Streamable HTTP", initialize.result?.serverInfo?.name === "lnkz");
-
-  const tools = await mcp("tools/list", {}, 2);
-  check("the MCP tool surface is advertised", (tools.result?.tools?.length ?? 0) >= 20, `saw ${tools.result?.tools?.length}`);
-
-  const called = await mcp("tools/call", { name: "workspace_stats", arguments: {} }, 3);
-  check("an MCP tool call returns structured content", called.result?.structuredContent?.stats?.conversations === 1);
 
   const events = await request("/api/events?limit=50");
   const kinds = new Set((events.body?.events ?? []).map((event) => event.kind));
