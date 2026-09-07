@@ -1,7 +1,7 @@
 import { icon } from "./icons";
 import "./styles.css";
 
-const REPO = "https://github.com/nsirivolu27/LNKZ";
+const REPO = "https://github.com/nsirivolu27/LLMM";
 
 const connectors = [
   { icon: "slack", label: "Slack", detail: "Messages and decisions" },
@@ -49,8 +49,8 @@ function render(): string {
 <main>
   <section class="hero" id="top">
     <nav class="nav" aria-label="Primary navigation">
-      <a class="brand" href="#top" aria-label="LNKZ home">
-        <span class="brand-mark">${icon("link", 19)}</span><span>LNKZ</span>
+      <a class="brand" href="#top" aria-label="LLMM home">
+        <span class="brand-mark">${icon("link", 19)}</span><span>LLMM</span>
       </a>
       <div class="nav-links">
         <a href="#product">Product</a>
@@ -66,7 +66,7 @@ function render(): string {
         <p class="eyebrow">${icon("spark", 15)} Context that moves with you</p>
         <h1>Carry the conversation forward.</h1>
         <p class="hero-text">
-          LNKZ is a portable context layer for people and AI. Move a useful chat from one model,
+           LLMM is a portable context layer for people and AI. Move a useful chat from one model,
           device, or teammate to the next, then connect it to the tools where the work continues.
         </p>
         <div class="hero-actions">
@@ -93,8 +93,8 @@ function render(): string {
       <p class="eyebrow">${icon("flow", 15)} One context layer</p>
       <h2>Your chats stop being dead ends.</h2>
       <p>
-        A conversation can become a handoff, a research source, a project brief, or the missing context
-        behind a decision. LNKZ keeps the thread intact while changing where it can be used.
+         A conversation can become a handoff, a research source, a project brief, or the missing context
+         behind a decision. LLMM keeps the thread intact while changing where it can be used.
       </p>
     </div>
     <div class="capability-grid">
@@ -113,7 +113,7 @@ function render(): string {
       <p class="eyebrow">${icon("cloud", 15)} Bring the surrounding context</p>
       <h2>Chats connect to the rest of the work.</h2>
       <p>
-        Adapters are optional and failure-isolated. LNKZ stays useful as a private conversation relay,
+         Adapters are optional and failure-isolated. LLMM stays useful as a private conversation relay,
         then gets richer as each workspace source is connected.
       </p>
       <ul class="check-list">
@@ -135,14 +135,14 @@ function render(): string {
 
   <section class="section developer-section" id="developers">
     <div class="developer-copy">
-      <p class="eyebrow">${icon("braces", 15)} MCP-native, HTTP-ready</p>
-      <h2>One server. Multiple ways in.</h2>
+       <p class="eyebrow">${icon("braces", 15)} REST relay, MCP adapter</p>
+       <h2>One context layer. Multiple ways in.</h2>
       <p>
-        Run LNKZ over Streamable HTTP for hosted clients, stdio for local tools, or the REST surface for
-        ordinary applications. The same conversation store powers every transport.
+         Run the LLMM REST relay for ordinary applications, then connect the standalone lnkz-mcp
+         adapter for local MCP tools. The same conversation store remains the source of truth.
       </p>
       <div class="endpoint-list">
-        <span><strong>POST</strong> /mcp</span>
+         <span><strong>GET</strong> /health</span>
         <span><strong>POST</strong> /api/conversations/import</span>
         <span><strong>POST</strong> /api/context/packet</span>
         <span><strong>GET</strong> /share/:token</span>
@@ -164,8 +164,8 @@ function render(): string {
   </section>
 
   <footer class="footer">
-    <a class="brand" href="#top"><span class="brand-mark">${icon("link", 19)}</span><span>LNKZ</span></a>
-    <p>Portable conversation context for people, devices, and AI.</p>
+     <a class="brand" href="#top"><span class="brand-mark">${icon("link", 19)}</span><span>LLMM</span></a>
+     <p>Portable conversation context for people, devices, and AI.</p>
     <span>Open-source MVP &middot; 2026</span>
   </footer>
 </main>`;
