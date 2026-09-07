@@ -11,7 +11,7 @@ dist/
 .DS_Store
 node_modules/
 .data/
-mcp-server/.data/
+lnkz-relay/.data/
 backend/media/
 backend/staticfiles/
 pipeline/.pytest_cache/
