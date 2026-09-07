@@ -1,4 +1,4 @@
-# LNKZ contributor guide
+# LLMM contributor guide
 
 ## What this is
 
@@ -8,10 +8,10 @@ safer to share. Features that only make the web app nicer are not the point.
 
 ## Boundaries to respect
 
-- `ConversationStore` in `mcp-server/src/store/index.ts` is the only storage contract. Handlers
+- `ConversationStore` in `lnkz-relay/src/store/index.ts` is the only storage contract. Handlers
   call it; they never reach past it into SQLite.
-- Expose capabilities through both MCP and REST. The web console is one client, not the client.
-- Import normalizers live in `mcp-server/src/import/` behind `looksLike` predicates. Detection
+- The relay exposes REST. MCP lives in the separate `lnkz-mcp` adapter, which is a REST client only.
+- Import normalizers live in `lnkz-relay/src/import/` behind `looksLike` predicates. Detection
   is a property of the format, never a guess at the call site.
 - The `intel/` layer stays model-free and deterministic. If a feature needs an LLM, it belongs
   in a prompt the client runs, not in the server.
@@ -39,7 +39,7 @@ npm run build
 node scripts/smoke.mjs
 ```
 
-The smoke test boots the built server and drives it over REST and MCP. Add a check there for
+The smoke test boots the built relay and drives it over REST. Add a check there for
 anything that could break in wiring rather than in logic.
 
 ## Generated and historical files
