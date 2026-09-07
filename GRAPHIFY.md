@@ -32,7 +32,7 @@ graphify hook install
 | `lnkz` | Conversation context: saved chats, packets, handoffs, connected sources |
 
 Claude Code picks that file up when it is opened in this folder. Build the LNKZ server first
-so `mcp-server/dist/stdio.js` exists:
+so the standalone `lnkz-mcp/dist/stdio.js` exists:
 
 ```bash
 npm run build
@@ -64,7 +64,7 @@ If you would rather edit it by hand, this is the equivalent:
     },
     "lnkz": {
       "command": "node",
-      "args": ["C:\\Users\\nsiri\\OneDrive\\Documents\\Playground\\LNKZ\\mcp-server\\dist\\stdio.js"],
+      "args": ["C:\\path\\to\\lnkz-mcp\\dist\\stdio.js"],
       "env": { "LNKZ_DB_FILE": "C:\\Users\\nsiri\\OneDrive\\Documents\\Playground\\LNKZ\\.data\\lnkz.db" }
     }
   }
