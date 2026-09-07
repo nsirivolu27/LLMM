@@ -1,7 +1,7 @@
 # Deploying LLMM
 
-LLMM runs as one container: a Node process serving the site, the REST API, and the MCP
-endpoint. It needs a persistent disk, because the SQLite store lives on it, and TLS, because
+LLMM runs as one container: a Node process serving the site and REST API. MCP clients use the
+standalone `lnkz-mcp` stdio adapter. It needs a persistent disk, because the SQLite store lives on it, and TLS, because
 a handoff token travels in a URL.
 
 Fly is the default below. Render is equivalent and covered at the end.
@@ -14,7 +14,7 @@ cycle.
 
 ```powershell
 npm install
-npm ci --prefix mcp-server
+npm ci --prefix lnkz-relay
 npm run typecheck
 npm test
 npm run build
@@ -69,7 +69,7 @@ What each one does, because getting these wrong is the usual first-deploy failur
 
 | Variable | Why it matters |
 | --- | --- |
-| `LNKZ_API_KEY` | Without it the API and the MCP endpoint are open to anyone who finds the URL. The server logs a warning at boot if it is unset. |
+| `LNKZ_API_KEY` | Protects the REST API. The server logs a warning at boot if it is unset; production deployments should always set it. |
 | `LNKZ_PUBLIC_BASE_URL` | The origin baked into every `shareUrl`. Set it wrong and handoff links point somewhere that does not exist. Must be `https`. |
 | `ALLOWED_HOSTS` | DNS rebinding protection. Must be the bare hostname, no scheme, no trailing slash. Loopback names are added automatically so the container's own health check is not rejected. |
 | `ALLOWED_ORIGINS` | Blocks cross-origin browser requests. Must include the scheme. |
@@ -112,9 +112,13 @@ start https://llmm.fly.dev/console.html
 ```json
 {
   "mcpServers": {
-    "llmm": {
-      "url": "https://llmm.fly.dev/mcp",
-      "headers": { "Authorization": "Bearer YOUR_LNKZ_API_KEY" }
+    "lnkz": {
+      "command": "node",
+      "args": ["/path/to/lnkz-mcp/dist/stdio.js"],
+      "env": {
+        "LNKZ_BASE_URL": "https://llmm.fly.dev",
+        "LNKZ_API_KEY": "YOUR_LNKZ_API_KEY"
+      }
     }
   }
 }
@@ -199,7 +203,7 @@ Record the `RepositoryUri`, `MigrationSecretArn`, `ApplicationDatabaseSecretArn`
 `DatabaseEndpoint` outputs. Push the image after building it:
 
 ```bash
-docker build -f mcp-server/Dockerfile -t llmm:release .
+docker build -f lnkz-relay/Dockerfile -t llmm:release .
 docker tag llmm:release "$REPOSITORY_URI:$IMAGE_TAG"
 docker push "$REPOSITORY_URI:$IMAGE_TAG"
 ```
@@ -211,7 +215,7 @@ and run the migration as the migration role:
 ```bash
 export DATABASE_URL='postgresql://lnkz_migrator:...@PRIVATE_RDS_ENDPOINT:5432/llmm'
 export LNKZ_DATABASE_APP_ROLE=lnkz_app
-npm --prefix mcp-server run db:migrate
+npm --prefix lnkz-relay run db:migrate
 ```
 
 `db:migrate` owns DDL and grants only table DML to `lnkz_app`; it does not grant ownership or
@@ -237,7 +241,7 @@ npx cdk deploy LnkzProduction \
 The VPC connector is required for private RDS access. It also means ordinary public egress is
 not available without the NAT Gateway. The S3 Gateway Endpoint avoids paying NAT for S3. Keep
 CloudFront/WAF out of v1 to avoid roughly $10–15/month of fixed cost; if public signup or share
-abuse justifies adding them later, never cache `/api/*`, `/mcp`, or `/share/*`.
+abuse justifies adding them later, never cache `/api/*` or `/share/*`.
 
 ### 3. Release and smoke test
 
