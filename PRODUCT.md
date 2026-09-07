@@ -16,11 +16,14 @@ LLMM moves useful working context between large language models, AI clients, dev
 
 ## Product surfaces
 
-- MCP over stateless Streamable HTTP and stdio for LLM clients.
+- REST relay for ordinary applications and automation; the standalone `lnkz-mcp` adapter provides
+  MCP stdio for LLM clients.
 - REST for ordinary applications and automation.
 - Web console for people who need to inspect, import, search, and hand off context.
 - SQLite for local single-user operation; Postgres with workspace RLS for shared deployments.
 
 ## Compatibility promise
 
-The product is now called LLMM. The existing LNKZ-prefixed environment variables, MCP tool names, and lnkz:// resource URIs remain stable so current clients and deployments continue to work. New documentation and user-facing copy should use LLMM.
+The product is now called LLMM. The existing LNKZ-prefixed environment variables, MCP tool names,
+and lnkz:// resource URIs remain stable in the standalone adapter so current clients and
+deployments continue to work. New documentation and user-facing copy should use LLMM.
