@@ -6,14 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build:web": "vite build",
-    "build": "npm run build:web && npm --prefix lnkz-relay run build",
+    "build": "npm run build:web && corepack pnpm --dir relay run build",
     "preview": "vite preview",
-    "start": "npm --prefix lnkz-relay run start",
-    "relay:dev": "npm --prefix lnkz-relay run dev",
+    "start": "corepack pnpm --dir relay run start",
     "infra:synth": "infra/node_modules/.bin/cdk synth",
     "infra:diff": "infra/node_modules/.bin/cdk diff",
-    "test": "npm --prefix lnkz-relay test",
-    "typecheck": "tsc --noEmit && npm --prefix lnkz-relay run typecheck"
+    "test": "corepack pnpm --dir relay test",
+    "typecheck": "tsc --noEmit && corepack pnpm --dir relay run typecheck"
   },
   "dependencies": {},
   "devDependencies": {
